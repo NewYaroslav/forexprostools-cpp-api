@@ -43,16 +43,17 @@ public:
                 INIT_ERROR = -2,
                 DECOMPRESSION_ERROR = -3,
                 PARSER_ERROR = -4,
+                SUBSTRING_NOT_FOUND = -5,
         };
 //------------------------------------------------------------------------------
 private:
         bool is_curl_global_init_error_ = false;
         const int MAX_NUM_ATTEMPT = 10;
-        const std::string sert_file_;                           /**< Имя файла сертефиката */
+        std::string sert_file_;                                 /**< Имя файла сертефиката */
         std::vector<ForexprostoolsApiEasy::News> list_news_;    /**< Список новостей */
-        std::mutex list_news_mutex_;
+        //std::mutex list_news_mutex_;
 //------------------------------------------------------------------------------
-        std::string get_request_body(unsigned long long beg_timestamp, unsigned long long end_timestamp, std::vector<std::string> countrys = std::vector<std::string>)
+        std::string get_request_body(unsigned long long beg_timestamp, unsigned long long end_timestamp, std::vector<int> countrys = std::vector<int>())
         {
                 xtime::DateTime start_time(beg_timestamp), stop_time(end_timestamp);
                 std::string request_body =
@@ -105,6 +106,50 @@ private:
                 return request_body;
         }
 //------------------------------------------------------------------------------
+        /** \brief Найти подстроку
+         * \param word слово, где ищем подстроку
+         * \param terminator_beg разделитель строки начала подстроки
+         * \param terminator_end разделитель строки конца подстроки
+         * \param out найденная подстрока
+         * \return вернет 0 в случае успеха
+         */
+        int find_substring(std::string &word, std::string terminator_beg, std::string terminator_end, std::string &out)
+        {
+                std::size_t beg_pos = word.find(terminator_beg, 0);
+                if(beg_pos != std::string::npos) {
+                        std::size_t end_pos = word.find(terminator_end, beg_pos + terminator_beg.size());
+                        if(end_pos != std::string::npos) {
+                                out = word.substr(beg_pos + terminator_beg.size(), end_pos - beg_pos - terminator_beg.size());
+                                return OK;
+                        } // if
+                } // if
+                return SUBSTRING_NOT_FOUND;
+        }
+//------------------------------------------------------------------------------
+        /** \brief Найти подстроку
+         * \param word слово, где ищем подстроку
+         * \param title заголовок подстроки
+         * \param terminator_beg разделитель строки начала подстроки
+         * \param terminator_end разделитель строки конца подстроки
+         * \param out найденная подстрока
+         * \return вернет 0 в случае успеха
+         */
+        int find_substring(std::string &word, std::string title, std::string terminator_beg, std::string terminator_end, std::string &out)
+        {
+                std::size_t title_pos = word.find(title, 0);
+                if(title_pos != std::string::npos) {
+                        std::size_t beg_pos = word.find(terminator_beg, title_pos);
+                        if(beg_pos != std::string::npos) {
+                                std::size_t end_pos = word.find(terminator_end, beg_pos + 1);
+                                if(end_pos != std::string::npos) {
+                                        out = word.substr(beg_pos + 1, end_pos - beg_pos - 1);
+                                        return OK;
+                                } // if
+                        } // if
+                }
+                return SUBSTRING_NOT_FOUND;
+        }
+//------------------------------------------------------------------------------
         int parse_response(std::string response, std::vector<ForexprostoolsApiEasy::News> &list_news)
         {
                 using json = nlohmann::json;
@@ -131,19 +176,12 @@ private:
                                         start_data_pos = end_pos + header_end.size();
                                         // парсим part
                                         const std::string str_event_timestamp = "event_timestamp=";
-                                        std::size_t event_timestamp_pos = part.find(str_event_timestamp, 0);
-                                        if(event_timestamp_pos != std::string::npos) {
-                                                const std::string str_div_timestamp = "\"";
-                                                std::size_t beg_pos = part.find(str_div_timestamp, event_timestamp_pos);
-                                                if(beg_pos != std::string::npos) {
-                                                        std::size_t end_pos = part.find(str_div_timestamp, beg_pos + 1);
-                                                        if(end_pos != std::string::npos) {
-                                                                std::string str_time = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                                                xtime::convert_str_to_timestamp(str_time, one_news.timestamp);
-                                                                state |= STATE_TIME;
-                                                                //std::cout << xtime::get_str_unix_date_time(timestamp) << std::endl;
-                                                        } // if
-                                                } // if
+                                        const std::string str_div_timestamp = "\"";
+                                        std::string str_time;
+                                        if(find_substring(part, str_event_timestamp, str_div_timestamp, str_div_timestamp, str_time) == OK) {
+                                                xtime::convert_str_to_timestamp(str_time, one_news.timestamp);
+                                                state |= STATE_TIME;
+                                                //std::cout << xtime::get_str_unix_date_time(timestamp) << std::endl;
                                         } else {
                                                 continue;
                                         }
@@ -151,133 +189,86 @@ private:
                                         const std::string str_event_actual = "eventActual_";
                                         const std::string str_event_forecast = "eventForecast_";
                                         const std::string str_event_previous = "eventPrevious_";
-
-                                        std::size_t event_actual_pos = part.find(str_event_actual, 0);
-                                        std::size_t event_forecast_pos = part.find(str_event_forecast, 0);
-                                        std::size_t event_previous_pos = part.find(str_event_previous, 0);
-
+                                        const std::string str_nbsp = "&nbsp;";
                                         const std::string str_div_beg = ">";
                                         const std::string str_div_end = "<";
+                                        std::string str_previous, str_actual, str_forecast;
 
-                                        if(event_previous_pos != std::string::npos) {
-                                                std::size_t beg_pos = part.find(str_div_beg, event_previous_pos);
-                                                if(beg_pos != std::string::npos) {
-                                                        std::size_t end_pos = part.find(str_div_end, beg_pos + 1);
-                                                        if(end_pos != std::string::npos) {
-                                                                std::string str_previous = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                                                //
-                                                                const std::string str_nbsp = "&nbsp;";
-                                                                std::size_t nbsp_pos = str_previous.find(str_nbsp, 0);
-                                                                if(nbsp_pos == std::string::npos) {
-                                                                        one_news.previous = atof(str_previous.c_str());
-                                                                        one_news.is_previous = true;
-                                                                        state |= STATE_DATA;
-                                                                }
-                                                                //std::cout << "previous " << str_previous << std::endl;
-                                                        } // if
-                                                } // if
+                                        if(find_substring(part, str_event_previous, str_div_beg, str_div_end, str_previous) == OK) {
+                                                if(str_previous.find(str_nbsp, 0) == std::string::npos) {
+                                                        one_news.previous = atof(str_previous.c_str());
+                                                        one_news.is_previous = true;
+                                                        state |= STATE_DATA;
+                                                }
                                         }
-                                        if(event_actual_pos != std::string::npos) {
-                                                std::size_t beg_pos = part.find(str_div_beg, event_actual_pos);
-                                                if(beg_pos != std::string::npos) {
-                                                        std::size_t end_pos = part.find(str_div_end, beg_pos + 1);
-                                                        if(end_pos != std::string::npos) {
-                                                                std::string str_actual = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                                                //
-                                                                const std::string str_nbsp = "&nbsp;";
-                                                                std::size_t nbsp_pos = str_actual.find(str_nbsp, 0);
-                                                                if(nbsp_pos == std::string::npos) {
-                                                                        one_news.actual = atof(str_actual.c_str());
-                                                                        one_news.is_actual = true;
-                                                                        state |= STATE_DATA;
-                                                                }
-                                                                //std::cout << "actual " << str_actual << std::endl;
-                                                        } // if
-                                                } // if
+                                        if(find_substring(part, str_event_actual, str_div_beg, str_div_end, str_actual) == OK) {
+                                                if(str_actual.find(str_nbsp, 0) == std::string::npos) {
+                                                        one_news.actual = atof(str_actual.c_str());
+                                                        one_news.is_actual = true;
+                                                        state |= STATE_DATA;
+                                                }
                                         }
-                                        if(event_forecast_pos != std::string::npos) {
-                                                std::size_t beg_pos = part.find(str_div_beg, event_forecast_pos);
-                                                if(beg_pos != std::string::npos) {
-                                                        std::size_t end_pos = part.find(str_div_end, beg_pos + 1);
-                                                        if(end_pos != std::string::npos) {
-                                                                std::string str_forecast = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                                                //
-                                                                const std::string str_nbsp = "&nbsp;";
-                                                                std::size_t nbsp_pos = str_forecast.find(str_nbsp, 0);
-                                                                if(nbsp_pos == std::string::npos) {
-                                                                        one_news.forecast = atof(str_forecast.c_str());
-                                                                        one_news.is_forecast = true;
-                                                                        state |= STATE_DATA;
-                                                                }
-                                                                //std::cout << "forecast " << str_forecast << std::endl;
-                                                        } // if
-                                                } // if
+                                        if(find_substring(part, str_event_forecast, str_div_beg, str_div_end, str_forecast) == OK) {
+                                                if(str_forecast.find(str_nbsp, 0) == std::string::npos) {
+                                                        one_news.forecast = atof(str_forecast.c_str());
+                                                        one_news.is_forecast = true;
+                                                        state |= STATE_DATA;
+                                                }
                                         }
                                         // определяем волатильность новости
                                         const std::string str_sentiment_div_beg = "<td class=\"left textNum sentiment noWrap\" title=\"";
                                         const std::string str_sentiment_div_end = "\"";
-                                        std::size_t sentiment_beg_pos = part.find(str_sentiment_div_beg, 0);
-                                        if(sentiment_beg_pos != std::string::npos) {
-                                                std::size_t sentiment_end_pos = part.find(str_sentiment_div_end, sentiment_beg_pos + str_sentiment_div_beg.size());
-                                                if(sentiment_end_pos != std::string::npos) {
-                                                        std::string str_sentiment = part.substr(sentiment_beg_pos + str_sentiment_div_beg.size(), sentiment_end_pos - sentiment_beg_pos - str_sentiment_div_beg.size());
-                                                        const std::string str_low = "Low";
-                                                        const std::string str_moderate = "Moderate";
-                                                        const std::string str_high = "High";
-                                                        if(str_sentiment.find(str_low, 0) != std::string::npos) {
-                                                                one_news.level_volatility = ForexprostoolsApiEasy::LOW;
-                                                                state |= STATE_VOL;
-                                                                //std::cout << "sentiment " << str_low << std::endl;
-                                                        } else
-                                                        if(str_sentiment.find(str_moderate, 0) != std::string::npos) {
-                                                                one_news.level_volatility = ForexprostoolsApiEasy::MODERATE;
-                                                                state |= STATE_VOL;
-                                                                //std::cout << "sentiment " << str_moderate << std::endl;
-                                                        } else
-                                                        if(str_sentiment.find(str_high, 0) != std::string::npos) {
-                                                                one_news.level_volatility = ForexprostoolsApiEasy::HIGH;
-                                                                state |= STATE_VOL;
-                                                                //std::cout << "sentiment " << str_high << std::endl;
-                                                        }
-                                                } // if
-                                        } // if
+                                        std::string str_sentiment;
+                                        if(find_substring(part, str_sentiment_div_beg, str_sentiment_div_end, str_sentiment) == OK) {
+                                                const std::string str_low = "Low";
+                                                const std::string str_moderate = "Moderate";
+                                                const std::string str_high = "High";
+                                                if(str_sentiment.find(str_low, 0) != std::string::npos) {
+                                                        one_news.level_volatility = ForexprostoolsApiEasy::LOW;
+                                                        state |= STATE_VOL;
+                                                        //std::cout << "sentiment " << str_low << std::endl;
+                                                } else
+                                                if(str_sentiment.find(str_moderate, 0) != std::string::npos) {
+                                                        one_news.level_volatility = ForexprostoolsApiEasy::MODERATE;
+                                                        state |= STATE_VOL;
+                                                        //std::cout << "sentiment " << str_moderate << std::endl;
+                                                } else
+                                                if(str_sentiment.find(str_high, 0) != std::string::npos) {
+                                                        one_news.level_volatility = ForexprostoolsApiEasy::HIGH;
+                                                        state |= STATE_VOL;
+                                                        //std::cout << "sentiment " << str_high << std::endl;
+                                                }
+                                        }
 
                                         // определяем имя новости
                                         const std::string str_left_event_div_beg = "<td class=\"left event\">";
                                         const std::string str_left_event_div_end = "<";
-                                        std::size_t left_event_beg_pos = part.find(str_left_event_div_beg, 0);
-                                        if(left_event_beg_pos != std::string::npos) {
-                                                std::size_t left_event_end_pos = part.find(str_left_event_div_end, left_event_beg_pos + str_left_event_div_beg.size());
-                                                if(left_event_end_pos != std::string::npos) {
-                                                        std::string str_left_event = part.substr(left_event_beg_pos + str_left_event_div_beg.size(), left_event_end_pos - left_event_beg_pos - str_left_event_div_beg.size());
-                                                        // удаляем слово &nbsp; если оно есть
-                                                        const std::string str_nbsp = "&nbsp;";
-                                                        std::size_t nbsp_pos = str_left_event.find(str_nbsp, 0);
-                                                        if(nbsp_pos != std::string::npos) {
-                                                                str_left_event.erase(nbsp_pos, str_nbsp.length());
-                                                        }
-                                                        // удаляем лишние пробелы и прочее
-                                                        str_left_event.erase(std::remove_if(str_left_event.begin(), str_left_event.end(), [](char c){
-                                                                return c == '\t' || c == '\v' || c == '\n' || c == '\r';
-                                                                }), str_left_event.end());
-
-                                                        while(str_left_event.size() > 0 && std::isspace(str_left_event[0])) {
-                                                                str_left_event.erase(str_left_event.begin());
-                                                        }
-                                                        while(str_left_event.size() > 0 && std::isspace(str_left_event.back())) {
-                                                                str_left_event.erase(str_left_event.end() - 1);
-                                                        }
-                                                        str_left_event.erase(std::unique_copy(str_left_event.begin(), str_left_event.end(), str_left_event.begin(),
-                                                                [](char c1, char c2){
-                                                                        return std::isspace(c1) && std::isspace(c2);
-                                                                }),
-                                                                str_left_event.end());
-                                                        one_news.name = str_left_event;
-                                                        state |= STATE_NAME;
-                                                        //std::cout << "left_event " << str_left_event << std::endl;
+                                        std::string str_left_event;
+                                        if(find_substring(part, str_left_event_div_beg, str_left_event_div_end, str_left_event) == OK) {
+                                                std::size_t nbsp_pos = str_left_event.find(str_nbsp, 0);
+                                                if(nbsp_pos != std::string::npos) {
+                                                        str_left_event.erase(nbsp_pos, str_nbsp.length());
                                                 }
-                                        }
+                                                // удаляем лишние пробелы и прочее
+                                                str_left_event.erase(std::remove_if(str_left_event.begin(), str_left_event.end(), [](char c){
+                                                        return c == '\t' || c == '\v' || c == '\n' || c == '\r';
+                                                        }), str_left_event.end());
 
+                                                while(str_left_event.size() > 0 && std::isspace(str_left_event[0])) {
+                                                        str_left_event.erase(str_left_event.begin());
+                                                }
+                                                while(str_left_event.size() > 0 && std::isspace(str_left_event.back())) {
+                                                        str_left_event.erase(str_left_event.end() - 1);
+                                                }
+                                                str_left_event.erase(std::unique_copy(str_left_event.begin(), str_left_event.end(), str_left_event.begin(),
+                                                        [](char c1, char c2){
+                                                                return std::isspace(c1) && std::isspace(c2);
+                                                        }),
+                                                        str_left_event.end());
+                                                one_news.name = str_left_event;
+                                                state |= STATE_NAME;
+                                                //std::cout << "left_event " << str_left_event << std::endl;
+                                        }
                                         // определяем страну валюты
                                         const std::string str_flag_div_beg = "<td class=\"left flagCur noWrap\">";
                                         const std::string str_flag_div_end = "</td>";
@@ -326,7 +317,7 @@ private:
                 return OK;
         }
 //------------------------------------------------------------------------------
-        inline int writer(char *data, size_t size, size_t nmemb, std::string *buffer)
+        static int writer(char *data, size_t size, size_t nmemb, std::string *buffer)
         {
                 int result = 0;
                 if (buffer != NULL) {
@@ -427,82 +418,28 @@ public:
                 if(curl_global_init(CURL_GLOBAL_ALL) !=0) {
                         is_curl_global_init_error_ = true;
                 }
-                std::string sert_file_ = sert_file;
+                sert_file_ = sert_file;
         }
 //------------------------------------------------------------------------------
-        /** \brief
-         *
+        /** \brief Загрузить все новости за дату
          * \param beg_timestamp начальная дата новостей
          * \param end_timestamp конечная дата новостей
-         * \param is_wait ждать ответа сервера
-         * \return
-         *
+         * \param list_news список новостей
+         * \return вернет 0 в случае успеха
          */
-        int download_all_news(unsigned long long beg_timestamp, unsigned long long end_timestamp, bool is_wait = true)
+        int download_all_news(unsigned long long beg_timestamp, unsigned long long end_timestamp, std::vector<ForexprostoolsApiEasy::News> &list_news)
         {
                 if(is_curl_global_init_error_)
                         return NO_INIT;
-                std::thread curl_thread([&, beg_timestamp, end_timestamp]() {
-                        std::string request_body = get_request_body(beg_timestamp, end_timestamp);
-                        std::string response;
-                        if(do_post_request(request_body, response, sert_file_) == OK) {
-
-                                if(parse_response(response, list_news_) == OK) {
-
-                                }
-
-                        }
-                });
-                if(is_wait) {
-                        curl_thread.join();
-                } else {
-                        curl_thread.detach();
+                std::string request_body = get_request_body(beg_timestamp, end_timestamp);
+                std::string response;
+                int err = do_post_request(request_body, response, sert_file_);
+                if(err == OK) {
+                        err = parse_response(response, list_news);
                 }
+                return err;
         }
 //------------------------------------------------------------------------------
-        int get_news(unsigned long long beg_timestamp, unsigned long long end_timestamp)
-        {
-                if(is_curl_global_init_error_)
-                        return NO_INIT;
-                std::thread curl_thread([&, beg_timestamp, end_timestamp]() {
-                        int num_attempt = MAX_NUM_ATTEMPT;
-                        while(num_attempt > 0) {
-                                num_attempt--;
-                                CURL *curl;
-                                curl = curl_easy_init();
-                                CURLcode result;
-                                if(!curl) {
-                                        std::cout << "cant init curl. exit" << std::endl;
-                                        continue;
-                                }
-                                curl_easy_setopt(curl, CURLOPT_CAINFO, sert_file_.c_str());
-                                curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
-                                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                                curl_easy_setopt(curl, CURLOPT_POST, 1);
-
-                                curl_easy_setopt(curl, CURLOPT_HEADER, 0);
-                                //curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
-                                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
-                                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-                                // Headers
-                                struct curl_slist *httpHeaders = NULL;
-                                httpHeaders = curl_slist_append(httpHeaders, "Host: sslecal2.forexprostools.com");
-                                //httpHeaders = curl_slist_append(httpHeaders, "User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:63.0) Gecko/20100101 Firefox/63.0");
-                                httpHeaders = curl_slist_append(httpHeaders, "Accept: application/json, text/javascript, */*; q=0.01");
-                                httpHeaders = curl_slist_append(httpHeaders, "Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3");
-                                httpHeaders = curl_slist_append(httpHeaders, "Accept-Encoding: gzip, deflate, br");
-                                httpHeaders = curl_slist_append(httpHeaders, "Referer: https://sslecal2.forexprostools.com/?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&category=_employment,_economicActivity,_inflation,_credit,_centralBanks,_confidenceIndex,_balance,_Bonds&importance=3&features=datepicker,timezone,timeselector,filters&countries=25,32,6,37,72,22,17,39,14,10,35,43,56,36,110,11,26,12,4,5&calType=week&timeZone=18&lang=7");
-                                httpHeaders = curl_slist_append(httpHeaders, "Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
-                                httpHeaders = curl_slist_append(httpHeaders, "X-Requested-With: XMLHttpRequest");
-                                //httpHeaders = curl_slist_append(httpHeaders, content_length.c_str());
-                                httpHeaders = curl_slist_append(httpHeaders, "Content-Length: 620");
-                                httpHeaders = curl_slist_append(httpHeaders, "Connection: keep-alive");
-                                httpHeaders = curl_slist_append(httpHeaders, "Cache-Control: no-cache");
-                                httpHeaders = curl_slist_append(httpHeaders, "Pragma: no-cache");
-                        }
-                });
-                curl_thread.detach();
-        }
-}
+};
 
 #endif // FOREXPROSTOOLSAPI_HPP_INCLUDED
