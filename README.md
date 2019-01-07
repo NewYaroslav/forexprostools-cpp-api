@@ -2,7 +2,7 @@
 Библиотека на С++ для загрузки новостей с Forexprostools.com
 
 ### Описание
-Данная *header-only* библиотека содержит класс для взаимодействия с экономическим календарем [https://sslecal2.forexprostools.com](https://sslecal2.forexprostools.com/?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&category=_employment,_economicActivity,_inflation,_credit,_centralBanks,_confidenceIndex,_balance,_Bonds&importance=3&features=datepicker,timezone,timeselector,filters&countries=25,32,6,37,72,22,17,39,14,10,35,43,56,36,110,11,26,12,4,5&calType=week&timeZone=55&lang=1)
+Данная *header-only* библиотека содержит класс для взаимодействия с экономическим календарем [https://www.investing.com/webmaster-tools/economic-calendar](https://www.investing.com/webmaster-tools/economic-calendar)
 
 Класс *ForexprostoolsApi* позволяет загружать исторические данные за любой период. 
 
