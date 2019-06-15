@@ -37,12 +37,13 @@ class ForexprostoolsApi
 {
 public:
 //------------------------------------------------------------------------------
+        /// Набор возможных состояний ошибки
         enum ErrorType {
-                OK = 0,
-                NO_INIT = -1,
-                INIT_ERROR = -2,
-                DECOMPRESSION_ERROR = -3,
-                PARSER_ERROR = -4,
+                OK = 0,                         ///< Ошибок нет, все в порядке
+                NO_INIT = -1,                   ///< Нет инициализации
+                INIT_ERROR = -2,                ///< Ошибка инициализации
+                DECOMPRESSION_ERROR = -3,       ///< Ошибка декомпрессии
+                PARSER_ERROR = -4,              ///< Ошибка парсера
                 SUBSTRING_NOT_FOUND = -5,
         };
 //------------------------------------------------------------------------------
@@ -53,6 +54,12 @@ private:
         std::vector<ForexprostoolsApiEasy::News> list_news_;    /**< Список новостей */
         //std::mutex list_news_mutex_;
 //------------------------------------------------------------------------------
+        /** \brief Получить тело запроса
+         * \param beg_timestamp временная метка начала экономических новостей
+         * \param end_timestamp временная метка конца экономических новостей
+         * \param countrys страны новостей
+         * \return тело запроса
+         */
         std::string get_request_body(unsigned long long beg_timestamp, unsigned long long end_timestamp, std::vector<int> countrys = std::vector<int>())
         {
                 xtime::DateTime start_time(beg_timestamp), stop_time(end_timestamp);
@@ -181,7 +188,7 @@ private:
                                         if(find_substring(part, str_event_timestamp, str_div_timestamp, str_div_timestamp, str_time) == OK) {
                                                 xtime::convert_str_to_timestamp(str_time, one_news.timestamp);
                                                 state |= STATE_TIME;
-                                                //std::cout << xtime::get_str_unix_date_time(timestamp) << std::endl;
+                                                //if(is_t) std::cout << xtime::get_str_unix_date_time(one_news.timestamp) << std::endl;
                                         } else {
                                                 continue;
                                         }
@@ -198,22 +205,22 @@ private:
                                                 if(str_previous.find(str_nbsp, 0) == std::string::npos) {
                                                         one_news.previous = atof(str_previous.c_str());
                                                         one_news.is_previous = true;
-                                                        state |= STATE_DATA;
                                                 }
+                                                state |= STATE_DATA;
                                         }
                                         if(find_substring(part, str_event_actual, str_div_beg, str_div_end, str_actual) == OK) {
                                                 if(str_actual.find(str_nbsp, 0) == std::string::npos) {
                                                         one_news.actual = atof(str_actual.c_str());
                                                         one_news.is_actual = true;
-                                                        state |= STATE_DATA;
                                                 }
+                                                state |= STATE_DATA;
                                         }
                                         if(find_substring(part, str_event_forecast, str_div_beg, str_div_end, str_forecast) == OK) {
                                                 if(str_forecast.find(str_nbsp, 0) == std::string::npos) {
                                                         one_news.forecast = atof(str_forecast.c_str());
                                                         one_news.is_forecast = true;
-                                                        state |= STATE_DATA;
                                                 }
+                                                state |= STATE_DATA;
                                         }
                                         // определяем волатильность новости
                                         const std::string str_sentiment_div_beg = "<td class=\"left textNum sentiment noWrap\" title=\"";
@@ -226,17 +233,17 @@ private:
                                                 if(str_sentiment.find(str_low, 0) != std::string::npos) {
                                                         one_news.level_volatility = ForexprostoolsApiEasy::LOW;
                                                         state |= STATE_VOL;
-                                                        //std::cout << "sentiment " << str_low << std::endl;
+                                                        //if(is_t) std::cout << "sentiment " << str_low << std::endl;
                                                 } else
                                                 if(str_sentiment.find(str_moderate, 0) != std::string::npos) {
                                                         one_news.level_volatility = ForexprostoolsApiEasy::MODERATE;
                                                         state |= STATE_VOL;
-                                                        //std::cout << "sentiment " << str_moderate << std::endl;
+                                                        //if(is_t) std::cout << "sentiment " << str_moderate << std::endl;
                                                 } else
                                                 if(str_sentiment.find(str_high, 0) != std::string::npos) {
                                                         one_news.level_volatility = ForexprostoolsApiEasy::HIGH;
                                                         state |= STATE_VOL;
-                                                        //std::cout << "sentiment " << str_high << std::endl;
+                                                        //if(is_t) std::cout << "sentiment " << str_high << std::endl;
                                                 }
                                         }
 
@@ -267,7 +274,7 @@ private:
                                                         str_left_event.end());
                                                 one_news.name = str_left_event;
                                                 state |= STATE_NAME;
-                                                //std::cout << "left_event " << str_left_event << std::endl;
+                                                //if(is_t) std::cout << "left_event " << str_left_event << std::endl;
                                         }
                                         // определяем страну валюты
                                         const std::string str_flag_div_beg = "<td class=\"left flagCur noWrap\">";
@@ -288,7 +295,7 @@ private:
                                                                         if(end_pos != std::string::npos) {
                                                                                 // имя страны
                                                                                 one_news.country = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                                                                //std::cout << str_title << std::endl;
+                                                                                //if(is_t) std::cout << one_news.country << std::endl;
                                                                         } // if
                                                                 } // if
                                                         }
@@ -299,7 +306,7 @@ private:
                                                                 std::string str_currency = part.substr(currency_pos + str_currency_beg.size(), flag_end_pos - currency_pos - str_currency_beg.size());
                                                                 str_currency.erase(std::remove_if(str_currency.begin(), str_currency.end(), ::isspace), str_currency.end());
                                                                 one_news.currency = str_currency;
-                                                                //std::cout << str_currency << std::endl;
+                                                                //if(is_t) std::cout << str_currency << std::endl;
                                                         }
                                                 } // if
                                         } // if
