@@ -23,12 +23,13 @@
 */
 #ifndef FOREXPROSTOOLSAPIEASY_HPP_INCLUDED
 #define FOREXPROSTOOLSAPIEASY_HPP_INCLUDED
-
-#include <fstream>
-#include <nlohmann/json.hpp>
+//------------------------------------------------------------------------------
+#include "ForexprostoolsApi.hpp"
+#include "banana_filesystem.hpp"
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <cctype>
 //------------------------------------------------------------------------------
 namespace ForexprostoolsApiEasy
 {
@@ -37,7 +38,9 @@ namespace ForexprostoolsApiEasy
         enum ErrorType {
                 OK = 0,                 ///< Ошибок нет, все в порядке
                 NO_ACCESS_DATA = -1,    ///< Нет доступа к данным
+                UNKNOWN_ERROR = -3,     ///< Неопределенная ошибка
                 PARSER_ERROR = -4,      ///< Ошибка парсера
+                INVALID_PARAMETER = -6, ///< Один из параметров неверно указан
         };
 //------------------------------------------------------------------------------
         /// Уровни волатильности
@@ -170,6 +173,9 @@ namespace ForexprostoolsApiEasy
                         return OK;
                 }
 //------------------------------------------------------------------------------
+                void clear() {
+                        list_news_.clear();
+                }
         };
 //------------------------------------------------------------------------------
         /** \brief Получить имя файла из даты
@@ -224,7 +230,6 @@ namespace ForexprostoolsApiEasy
                         file >> j;
                         list_news.resize(j.size());
                         for(size_t i = 0; i < list_news.size(); ++i) {
-
                                 list_news[i].name = j[i]["name"];
                                 list_news[i].currency = j[i]["currency"];
                                 list_news[i].country = j[i]["country"];
@@ -246,6 +251,186 @@ namespace ForexprostoolsApiEasy
                 file.close();
                 return OK;
         }
+//------------------------------------------------------------------------------
+        /** \brief Найти первую и последнюю дату файлов
+         * \param file_list список файлов
+         * \param file_extension расширение файла (например .json)
+         * \param beg_timestamp первая дата, встречающееся среди файлов
+         * \param end_timestamp последняя дата, встречающееся среди файлов
+         * \return вернет 0 в случае успеха
+         */
+        int get_beg_end_timestamp(
+                std::vector<std::string> &file_list,
+                std::string file_extension,
+                unsigned long long &beg_timestamp,
+                unsigned long long &end_timestamp) {
+                if(file_list.size() == 0)
+                        return INVALID_PARAMETER;
+                beg_timestamp = std::numeric_limits<unsigned long long>::max();
+                end_timestamp = std::numeric_limits<unsigned long long>::min();
+                for(size_t i = 0; i < file_list.size(); i++) {
+                        std::vector<std::string> path_file;
+                        bf::parse_path(file_list[i], path_file);
+                        if(path_file.size() == 0)
+                                continue;
+                        std::string file_name = path_file.back();
+                        // очищаем слово от расширения
+                        std::size_t first_pos = file_name.find(file_extension);
+                        if(first_pos == std::string::npos)
+                                continue;
+                        unsigned long long time;
+                        std::string word = file_name.substr(0, first_pos);
+                        if(xtime::convert_str_to_timestamp(file_name.substr(0, first_pos), time)) {
+                                if(beg_timestamp > time)
+                                        beg_timestamp = time;
+                                if(end_timestamp < time)
+                                        end_timestamp = time;
+                        }
+                }
+                if(beg_timestamp == std::numeric_limits<unsigned long long>::max() ||
+                        end_timestamp == std::numeric_limits<unsigned long long>::min())
+                        return UNKNOWN_ERROR;
+                return OK;
+        }
+//------------------------------------------------------------------------------
+        /** \brief Найти первую и последнюю дату файлов
+         * \param path директория с файлами исторических данных
+         * \param file_extension расширение файла (например .hex или .zstd)
+         * \param beg_timestamp первая дата, встречающееся среди файлов
+         * \param end_timestamp последняя дата, встречающееся среди файлов
+         * \return вернет 0 в случае успеха
+         */
+        int get_beg_end_timestamp_for_path(
+                std::string path,
+                std::string file_extension,
+                unsigned long long &beg_timestamp,
+                unsigned long long &end_timestamp) {
+                std::vector<std::string> file_list;
+                bf::get_list_files(path, file_list, true);
+                return get_beg_end_timestamp(file_list, file_extension, beg_timestamp, end_timestamp);
+        }
+//------------------------------------------------------------------------------
+        enum FilterState {
+                NEWS_FOUND = 0,
+                NO_NEWS = 1,
+        };
+//------------------------------------------------------------------------------
+        /** \brief База данных новостей
+         */
+        class DataBase {
+        private:
+                std::string path;                       /**< Путь к базе данных */
+                unsigned long long timestamp_beg = 0;   /**< Временная метка исторических данных */
+                unsigned long long timestamp_end = 0;   /**< Временная метка исторических данных */
+                NewsList hist;                          /**< Исторические данные */
+
+                /** \brief Разбить имя валютной пары на составляющие валюты
+                 * \param pair_name имя валютной пары
+                 * \param currency_1 первая валюта валютной пары
+                 * \param currency_2 вторая валюта валютной пары
+                 * \return вернет 0 в случае успеха
+                 */
+                inline int get_currencies(std::string pair_name, std::string &currency_1, std::string &currency_2) {
+                        const size_t NAME_LEN = 6;
+                        if(pair_name.size() < NAME_LEN) return INVALID_PARAMETER;
+                        pair_name.erase(std::remove_if(pair_name.begin(), pair_name.end(), [](int c) {
+                                return !std::isalpha(c);
+                        }), pair_name.end());
+                        const std::string str_del = "frx";
+                        std::string::size_type pos = pair_name.find(str_del);
+                        while (pos != std::string::npos) {
+                                pair_name.erase(pos, str_del.size());
+                                pos = pair_name.find(str_del, pos + 1);
+                        }
+                        std::transform(pair_name.begin(), pair_name.end(),pair_name.begin(), ::toupper);
+                        if(pair_name.size() != NAME_LEN) return INVALID_PARAMETER;
+                        currency_1 = pair_name.substr(0, 3);
+                        currency_2 = pair_name.substr(3, 3);
+                        return OK;
+                }
+        public:
+                DataBase() {};
+
+                /** \brief Инициализировать базу данных новостей
+                 * \param _path путь к базе данных
+                 */
+                DataBase(std::string _path) {
+                        path = _path;
+                }
+
+
+                /** \brief Получить новости
+                 * \param _timestamp временная метка
+                 * \param _time_indent_dn максимальный отступ до временной метки
+                 * \param _time_indent_up максимальный отступ после временной метки
+                 * \param news_data список новостей
+                 * \return вернет 0 в случае отсутствия ошибок
+                 */
+                int get(
+                        unsigned long long _timestamp,
+                        unsigned long long _time_indent_dn,
+                        unsigned long long _time_indent_up,
+                        std::vector<News> &news_data) {
+                        unsigned long long start_time = _timestamp - _time_indent_dn;
+                        unsigned long long stop_time = _timestamp + _time_indent_up;
+
+                        xtime::DateTime iStartTime(start_time); iStartTime.set_beg_day();
+                        xtime::DateTime iStopTime(stop_time); iStopTime.set_beg_day();
+
+                        unsigned long long start_timestamp = iStartTime.get_timestamp();
+                        unsigned long long stop_timestamp = iStopTime.get_timestamp();
+
+                        // проверяем доступность данных
+                        if(start_timestamp < timestamp_beg || stop_timestamp > timestamp_end) {
+                                hist.clear();
+                                for(unsigned long long t = start_timestamp; t <= stop_timestamp; t += xtime::SEC_DAY) {
+                                        std::vector<News> list_news;
+                                        read_news_file(path + "//" + get_file_name_from_date(t) + ".json", list_news);
+                                        hist.add_news(list_news);
+                                }
+                                timestamp_beg = start_timestamp;
+                                timestamp_end = stop_timestamp;
+                        }
+                        return hist.get_news(_timestamp, _time_indent_dn, _time_indent_up, news_data);
+                }
+
+                /** \brief Фильтр новостей
+                 * Данная функция поместит в state NEWS_FOUND, если есть новости, или NO_NEWS, если новостей нет
+                 * \param _pair_name имя валютной пары
+                 * \param _timestamp текущее время (временная метка)
+                 * \param _time_indent_dn максимальный отступ до временной метки
+                 * \param _time_indent_up максимальный отступ после временной метки
+                 * \param min_level_volatility минимальый уровень силы новости (от 0 до 2)
+                 * \param state состояние фильтра (NEWS_FOUND или NO_NEWS)
+                 * \return вернет 0 в случае успеха
+                 */
+                int filter(
+                        std::string _pair_name,
+                        unsigned long long _timestamp,
+                        unsigned long long _time_indent_dn,
+                        unsigned long long _time_indent_up,
+                        int min_level_volatility,
+                        int &state) {
+
+                        std::string currency_1, currency_2;
+                        int err = get_currencies(_pair_name, currency_1, currency_2);
+                        if(err != OK) return err;
+
+                        std::vector<News> news_data;
+                        err = get(_timestamp, _time_indent_dn, _time_indent_up, news_data);
+                        if(err != OK) return err;
+
+                        state = NO_NEWS;
+                        for(size_t i = 0; i < news_data.size(); ++i) {
+                                if((news_data[i].currency == currency_1 || news_data[i].currency == currency_2) &&
+                                (news_data[i].level_volatility >= min_level_volatility)) {
+                                        state = NEWS_FOUND;
+                                        return OK;
+                                }
+                        }
+                        return OK;
+                }
+        };
 //------------------------------------------------------------------------------
 }
 

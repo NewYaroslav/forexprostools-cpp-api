@@ -45,6 +45,7 @@ public:
                 DECOMPRESSION_ERROR = -3,       ///< Ошибка декомпрессии
                 PARSER_ERROR = -4,              ///< Ошибка парсера
                 SUBSTRING_NOT_FOUND = -5,
+                NOT_ALL_DATA_DOWNLOADED = -8,
         };
 //------------------------------------------------------------------------------
 private:
@@ -445,6 +446,87 @@ public:
                         err = parse_response(response, list_news);
                 }
                 return err;
+        }
+//------------------------------------------------------------------------------
+        /** \brief Скачать и сохранить все доступыне данные по котировкам
+         * \param api Класс ForexprostoolsApi
+         * \param path директория, куда сохраняются данные
+         * \param timestamp временная метка, с которой начинается загрузка данных
+         * \param is_skip_day_off флаг пропуска выходных дней, true если надо пропускать выходные
+         * \param user_function - функтор
+         */
+        int download_and_save_all_data(
+                                       std::string path,
+                                       unsigned long long timestamp,
+                                       bool is_skip_day_off = true,
+                                       void (*user_function)(
+                                        std::vector<ForexprostoolsApiEasy::News> &,
+                                        unsigned long long) = NULL)
+        {
+                bf::create_directory(path);
+                xtime::DateTime iTime(timestamp);
+                iTime.set_beg_day();
+                unsigned long long stop_time = iTime.get_timestamp();
+                if(is_skip_day_off) {
+                        while(xtime::is_day_off(stop_time)) {
+                                stop_time -= xtime::SEC_DAY;
+                        }
+                }
+                int err = OK;
+                int num_download = 0;
+                int num_errors = 0;
+                while(true) {
+                        // сначала выполняем проверку
+                        std::string file_name = path + "//" +
+                                ForexprostoolsApiEasy::get_file_name_from_date(stop_time) + ".json";
+
+                        if(bf::check_file(file_name)) {
+                                if(is_skip_day_off) {
+                                        stop_time -= xtime::SEC_DAY;
+                                        while(xtime::is_day_off(stop_time)) {
+                                                stop_time -= xtime::SEC_DAY;
+                                        }
+                                } else {
+                                        stop_time -= xtime::SEC_DAY;
+                                }
+                                continue;
+                        }
+
+                        //std::cout << xtime::get_str_unix_date_time(stop_time) << std::endl;
+                        // загружаем файл
+                        std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
+                        err = download_all_news(stop_time, stop_time + xtime::SEC_DAY - 1, list_news);
+
+                        if(is_skip_day_off) {
+                                stop_time -= xtime::SEC_DAY;
+                                while(xtime::is_day_off(stop_time)) {
+                                        stop_time -= xtime::SEC_DAY;
+                                }
+                        } else {
+                                stop_time -= xtime::SEC_DAY;
+                        }
+                        if(err == OK && list_news.size() > 0) { // данные получены
+
+                                if(user_function != NULL)
+                                        user_function(list_news, stop_time);
+
+                                write_news_file(file_name, list_news);
+                                num_download++;
+                                num_errors = 0;
+                        } else {
+                                num_errors++;
+                        }
+                        const int MAX_ERRORS = 30;
+                        if(num_errors > MAX_ERRORS) {
+                                break;
+                        }
+                }
+                if(num_download == 0) {
+                        if(err != OK)
+                                return err;
+                        return NOT_ALL_DATA_DOWNLOADED;
+                }
+                return OK;
         }
 //------------------------------------------------------------------------------
 };

@@ -19,19 +19,19 @@
 class News
 {
 public:
-		std::string name;                       /**< Имя новости */
-		std::string currency;                   /**< Валюта новости */
-		std::string country;                    /**< Страна новости */
-		int level_volatility = NOT_INIT;        /**< Уровень волатильности (-1 не инициализировано, 0,1,2) */
-		double previous;                        /**< Предыдущее значение */
-		double actual;                          /**< Актуальное значение */
-		double forecast;                        /**< Предсказанное значение */
-		bool is_previous = false;               /**< Наличие предыдущего значения */
-		bool is_actual = false;                 /**< Наличие актуального значения */
-		bool is_forecast = false;               /**< Наличие предсказанного значения */
-		unsigned long long timestamp = 0;       /**< Временная метка новости */
+	std::string name;                       /**< Имя новости */
+	std::string currency;                   /**< Валюта новости */
+	std::string country;                    /**< Страна новости */
+	int level_volatility = NOT_INIT;        /**< Уровень волатильности (-1 не инициализировано, 0,1,2) */
+	double previous;                        /**< Предыдущее значение */
+	double actual;                          /**< Актуальное значение */
+	double forecast;                        /**< Предсказанное значение */
+	bool is_previous = false;               /**< Наличие предыдущего значения */
+	bool is_actual = false;                 /**< Наличие актуального значения */
+	bool is_forecast = false;               /**< Наличие предсказанного значения */
+	unsigned long long timestamp = 0;       /**< Временная метка новости */
 
-		News() {};
+	News() {};
 };
 ```
 
@@ -43,28 +43,28 @@ public:
 
 int main()
 {
-        std::cout << "Hello world!" << std::endl;
-        ForexprostoolsApi api;
+	std::cout << "Hello world!" << std::endl;
+	ForexprostoolsApi api;
 
-        std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
-        // загружаем новости
-        int err = api.download_all_news(xtime::get_unix_timestamp(1, 11, 2018, 0, 0, 0), xtime::get_unix_timestamp(30, 11, 2018, 0, 0, 0), list_news);
-        // выводим на экран
-        for(size_t i = 0; i < list_news.size(); ++i) {
-                std::cout << list_news[i].name << std::endl;
-        }
-        // инициализируем хранилище новостей
-        ForexprostoolsApiEasy::NewsList news_data(list_news);
-        std::vector<ForexprostoolsApiEasy::News> day_list_news; // список новостей вблизи временной метки
-        // получим новый список новостей
-        int err_news_data = news_data.get_news(xtime::get_unix_timestamp(5, 11, 2018, 6, 0, 0), xtime::SEC_HOUR * 5, xtime::SEC_HOUR * 5, day_list_news);
-        std::cout << "err_news_data " << err_news_data << std::endl;
+	std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
+	// загружаем новости
+	int err = api.download_all_news(xtime::get_unix_timestamp(1, 11, 2018, 0, 0, 0), xtime::get_unix_timestamp(30, 11, 2018, 0, 0, 0), list_news);
+	// выводим на экран
+	for(size_t i = 0; i < list_news.size(); ++i) {
+			std::cout << list_news[i].name << std::endl;
+	}
+	// инициализируем хранилище новостей
+	ForexprostoolsApiEasy::NewsList news_data(list_news);
+	std::vector<ForexprostoolsApiEasy::News> day_list_news; // список новостей вблизи временной метки
+	// получим новый список новостей
+	int err_news_data = news_data.get_news(xtime::get_unix_timestamp(5, 11, 2018, 6, 0, 0), xtime::SEC_HOUR * 5, xtime::SEC_HOUR * 5, day_list_news);
+	std::cout << "err_news_data " << err_news_data << std::endl;
 
-        // выводим новый список
-        for(size_t i = 0; i < day_list_news.size(); ++i) {
-                std::cout << xtime::get_str_unix_date_time(day_list_news[i].timestamp) << " " << day_list_news[i].name << std::endl;
-        }
-        return 0;
+	// выводим новый список
+	for(size_t i = 0; i < day_list_news.size(); ++i) {
+			std::cout << xtime::get_str_unix_date_time(day_list_news[i].timestamp) << " " << day_list_news[i].name << std::endl;
+	}
+	return 0;
 }
 ```
 
