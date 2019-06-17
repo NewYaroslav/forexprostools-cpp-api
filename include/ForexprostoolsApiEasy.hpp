@@ -124,20 +124,6 @@ namespace ForexprostoolsApiEasy
                                 return lhs < rhs.timestamp;
                         });
 
-                        if(lower == list_news_.begin()) {
-                                std::cout << "lower == list_news_.begin()" << std::endl;
-                        }
-                        if(upper == list_news_.begin()) {
-                                std::cout << "upper == list_news_.begin()" << std::endl;
-                        }
-                        if(lower == list_news_.end()) {
-                                std::cout << "lower == list_news_.end()" << std::endl;
-                        }
-                        if(upper == list_news_.end()) {
-                                std::cout << "upper == list_news_.end()" << std::endl;
-                        }
-
-
                         if(lower == list_news_.end() && upper == list_news_.end()) {
                                 return NO_ACCESS_DATA;
                         }

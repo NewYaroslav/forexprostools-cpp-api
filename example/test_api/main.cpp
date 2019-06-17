@@ -9,9 +9,12 @@ int main()
         std::string path = "D:\\_repoz\\forexprostools_database\\news";
         ForexprostoolsApiEasy::DataBase iNewsDataBase(path);
 
-        int state = 0;
-        std::cout << "filter " << iNewsDataBase.filter("EURUSD", xtime::get_unix_timestamp(14, 6, 2019, 12, 0, 0), xtime::SEC_HOUR/2, xtime::SEC_HOUR/2, 2, state) << std::endl;
-        std::cout << "state " << state << std::endl;
+        for(unsigned long long t = xtime::get_unix_timestamp(1, 1, 2017, 12, 0, 0); t < xtime::get_unix_timestamp(15, 6, 2019, 12, 0, 0); t += xtime::SEC_MINUTE) {
+                std::cout << "time " << xtime::get_str_unix_date_time(t) << std::endl;
+                int state = 0;
+                std::cout << "filter " << iNewsDataBase.filter("EURUSD", t, xtime::SEC_HOUR/2, xtime::SEC_HOUR/2, 2, state) << std::endl;
+                std::cout << "state " << state << std::endl;
+        }
         return 0;
 
         ForexprostoolsApi api;
