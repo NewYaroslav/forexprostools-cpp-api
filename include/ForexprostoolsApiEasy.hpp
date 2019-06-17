@@ -24,8 +24,9 @@
 #ifndef FOREXPROSTOOLSAPIEASY_HPP_INCLUDED
 #define FOREXPROSTOOLSAPIEASY_HPP_INCLUDED
 //------------------------------------------------------------------------------
-#include "ForexprostoolsApi.hpp"
 #include "banana_filesystem.hpp"
+#include <xtime.hpp>
+#include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <vector>
 #include <string>
