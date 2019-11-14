@@ -370,7 +370,7 @@ namespace ForexprostoolsApiEasy
                         // проверяем доступность данных
                         if(start_timestamp < timestamp_beg || stop_timestamp > timestamp_end) {
                                 hist.clear();
-                                for(unsigned long long t = start_timestamp; t <= stop_timestamp; t += xtime::SEC_DAY) {
+                                for(unsigned long long t = start_timestamp; t <= stop_timestamp; t += xtime::SECONDS_IN_DAY) {
                                         std::vector<News> list_news;
                                         read_news_file(path + "//" + get_file_name_from_date(t) + ".json", list_news);
                                         hist.add_news(list_news);

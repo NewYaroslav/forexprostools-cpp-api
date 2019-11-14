@@ -469,7 +469,7 @@ public:
                 unsigned long long stop_time = iTime.get_timestamp();
                 if(is_skip_day_off) {
                         while(xtime::is_day_off(stop_time)) {
-                                stop_time -= xtime::SEC_DAY;
+                                stop_time -= xtime::SECONDS_IN_DAY;
                         }
                 }
                 int err = OK;
@@ -482,12 +482,12 @@ public:
 
                         if(bf::check_file(file_name)) {
                                 if(is_skip_day_off) {
-                                        stop_time -= xtime::SEC_DAY;
+                                        stop_time -= xtime::SECONDS_IN_DAY;
                                         while(xtime::is_day_off(stop_time)) {
-                                                stop_time -= xtime::SEC_DAY;
+                                                stop_time -= xtime::SECONDS_IN_DAY;
                                         }
                                 } else {
-                                        stop_time -= xtime::SEC_DAY;
+                                        stop_time -= xtime::SECONDS_IN_DAY;
                                 }
                                 continue;
                         }
@@ -495,15 +495,15 @@ public:
                         //std::cout << xtime::get_str_unix_date_time(stop_time) << std::endl;
                         // загружаем файл
                         std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
-                        err = download_all_news(stop_time, stop_time + xtime::SEC_DAY - 1, list_news);
+                        err = download_all_news(stop_time, stop_time + xtime::SECONDS_IN_DAY - 1, list_news);
 
                         if(is_skip_day_off) {
-                                stop_time -= xtime::SEC_DAY;
+                                stop_time -= xtime::SECONDS_IN_DAY;
                                 while(xtime::is_day_off(stop_time)) {
-                                        stop_time -= xtime::SEC_DAY;
+                                        stop_time -= xtime::SECONDS_IN_DAY;
                                 }
                         } else {
-                                stop_time -= xtime::SEC_DAY;
+                                stop_time -= xtime::SECONDS_IN_DAY;
                         }
                         if(err == OK && list_news.size() > 0) { // данные получены
 
