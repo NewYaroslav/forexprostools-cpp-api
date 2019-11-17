@@ -449,84 +449,136 @@ public:
         }
 //------------------------------------------------------------------------------
         /** \brief Скачать и сохранить все доступыне данные по котировкам
-         * \param api Класс ForexprostoolsApi
          * \param path директория, куда сохраняются данные
          * \param timestamp временная метка, с которой начинается загрузка данных
          * \param is_skip_day_off флаг пропуска выходных дней, true если надо пропускать выходные
          * \param user_function - функтор
          */
         int download_and_save_all_data(
-                                       std::string path,
-                                       unsigned long long timestamp,
-                                       bool is_skip_day_off = true,
-                                       void (*user_function)(
-                                        std::vector<ForexprostoolsApiEasy::News> &,
-                                        unsigned long long) = NULL)
-        {
-                bf::create_directory(path);
-                xtime::DateTime iTime(timestamp);
-                iTime.set_beg_day();
-                unsigned long long stop_time = iTime.get_timestamp();
-                if(is_skip_day_off) {
-                        while(xtime::is_day_off(stop_time)) {
-                                stop_time -= xtime::SECONDS_IN_DAY;
-                        }
+                const std::string &path,
+                const xtime::timestamp_t timestamp,
+                const bool is_skip_day_off = true,
+                std::function<void(
+                    const std::vector<ForexprostoolsApiEasy::News> &list_news,
+                    const xtime::timestamp_t timestamp)> user_function = NULL) {
+            /* создаем папку */
+            bf::create_directory(path);
+            /* находим последнюю дату загрузки */
+            xtime::timestamp_t stop_time = xtime::get_first_timestamp_day(timestamp);
+            if(is_skip_day_off) {
+                while(xtime::is_day_off(stop_time)) {
+                    stop_time -= xtime::SECONDS_IN_DAY;
                 }
-                int err = OK;
-                int num_download = 0;
-                int num_errors = 0;
-                while(true) {
-                        // сначала выполняем проверку
-                        std::string file_name = path + "//" +
-                                ForexprostoolsApiEasy::get_file_name_from_date(stop_time) + ".json";
+            }
+            int err = OK;
+            int num_download = 0;
+            int num_errors = 0;
+            while(true) {
+                // сначала выполняем проверку
+                std::string file_name =
+                    path + "//" +
+                    ForexprostoolsApiEasy::get_file_name_from_date(stop_time) + ".json";
 
-                        if(bf::check_file(file_name)) {
-                                if(is_skip_day_off) {
-                                        stop_time -= xtime::SECONDS_IN_DAY;
-                                        while(xtime::is_day_off(stop_time)) {
-                                                stop_time -= xtime::SECONDS_IN_DAY;
-                                        }
-                                } else {
-                                        stop_time -= xtime::SECONDS_IN_DAY;
-                                }
-                                continue;
-                        }
+                    if(bf::check_file(file_name)) {
+                            if(is_skip_day_off) {
+                                    stop_time -= xtime::SECONDS_IN_DAY;
+                                    while(xtime::is_day_off(stop_time)) {
+                                            stop_time -= xtime::SECONDS_IN_DAY;
+                                    }
+                            } else {
+                                    stop_time -= xtime::SECONDS_IN_DAY;
+                            }
+                            continue;
+                    }
 
-                        //std::cout << xtime::get_str_unix_date_time(stop_time) << std::endl;
-                        // загружаем файл
-                        std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
-                        err = download_all_news(stop_time, stop_time + xtime::SECONDS_IN_DAY - 1, list_news);
+                    // загружаем новости
+                    std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
+                    err = download_all_news(stop_time, stop_time + xtime::SECONDS_IN_DAY - 1, list_news);
 
-                        if(is_skip_day_off) {
-                                stop_time -= xtime::SECONDS_IN_DAY;
-                                while(xtime::is_day_off(stop_time)) {
-                                        stop_time -= xtime::SECONDS_IN_DAY;
-                                }
-                        } else {
-                                stop_time -= xtime::SECONDS_IN_DAY;
-                        }
-                        if(err == OK && list_news.size() > 0) { // данные получены
+                    if(is_skip_day_off) {
+                            stop_time -= xtime::SECONDS_IN_DAY;
+                            while(xtime::is_day_off(stop_time)) {
+                                    stop_time -= xtime::SECONDS_IN_DAY;
+                            }
+                    } else {
+                            stop_time -= xtime::SECONDS_IN_DAY;
+                    }
+                    if(err == OK && list_news.size() > 0) { // данные получены
 
-                                if(user_function != NULL)
-                                        user_function(list_news, stop_time);
+                            if(user_function != NULL)
+                                    user_function(list_news, stop_time);
 
-                                write_news_file(file_name, list_news);
-                                num_download++;
-                                num_errors = 0;
-                        } else {
-                                num_errors++;
-                        }
-                        const int MAX_ERRORS = 30;
-                        if(num_errors > MAX_ERRORS) {
-                                break;
-                        }
+                            write_news_file(file_name, list_news);
+                            num_download++;
+                            num_errors = 0;
+                    } else {
+                            num_errors++;
+                    }
+                    const int MAX_ERRORS = 30;
+                    if(num_errors > MAX_ERRORS) {
+                            break;
+                    }
+            }
+            if(num_download == 0) {
+                    if(err != OK)
+                            return err;
+                    return NOT_ALL_DATA_DOWNLOADED;
+            }
+            return OK;
+        }
+//------------------------------------------------------------------------------
+        /** \brief Скачать и сохранить все доступыне данные по котировкам
+         * \param path директория, куда сохраняются данные
+         * \param timestamp_start_date Метка времени, с которой начинается загрузка данных
+         * \param timestamp_end_date Метка времени, на которой закончится загрузка данных (включительно указанный день)
+         * \param is_skip_day_off флаг пропуска выходных дней, true если надо пропускать выходные
+         * \param user_function - функтор
+         */
+        int download_and_save_all_data(
+                const xtime::timestamp_t timestamp_start_date,
+                const xtime::timestamp_t timestamp_end_date,
+                const bool is_skip_day_off = true,
+                std::function<void(
+                    const std::vector<ForexprostoolsApiEasy::News> &list_news,
+                    const xtime::timestamp_t timestamp)> user_function = NULL) {
+            /* находим последнюю дату загрузки */
+            xtime::timestamp_t stop_time = xtime::get_first_timestamp_day(timestamp_end_date);
+            if(is_skip_day_off) {
+                while(xtime::is_day_off(stop_time)) {
+                    stop_time -= xtime::SECONDS_IN_DAY;
                 }
-                if(num_download == 0) {
-                        if(err != OK)
-                                return err;
-                        return NOT_ALL_DATA_DOWNLOADED;
+            }
+            int err = OK;
+            int num_download = 0;
+            int num_errors = 0;
+            while(stop_time >= timestamp_start_date) {
+                /* сначала выполняем проверку на вызодной */
+                if(is_skip_day_off && xtime::is_day_off(stop_time)) {
+                    stop_time -= xtime::SECONDS_IN_DAY;
+                    continue;
                 }
-                return OK;
+
+                /* загружаем новости */
+                std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
+                err = download_all_news(stop_time, stop_time + xtime::SECONDS_IN_DAY - 1, list_news);
+                if(err == OK && list_news.size() > 0) { // данные получены
+                    user_function(list_news, stop_time);
+                    ++num_download;
+                    num_errors = 0;
+                } else {
+                    ++num_errors;
+                }
+                const int MAX_ERRORS = 30;
+                if(num_errors > MAX_ERRORS) {
+                    break;
+                }
+                stop_time -= xtime::SECONDS_IN_DAY;
+            }
+            if(num_download == 0) {
+                if(err != OK) return err;
+                return NOT_ALL_DATA_DOWNLOADED;
+            }
+            return OK;
         }
 //------------------------------------------------------------------------------
 };

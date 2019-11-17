@@ -16,3 +16,9 @@
 [submodule "lib/banana-filesystem-cpp"]
 	path = lib/banana-filesystem-cpp
 	url = https://github.com/NewYaroslav/banana-filesystem-cpp.git
+[submodule "lib/xquotes_history"]
+	path = lib/xquotes_history
+	url = https://github.com/NewYaroslav/xquotes_history.git
+[submodule "lib/zstd"]
+	path = lib/zstd
+	url = https://github.com/facebook/zstd.git
