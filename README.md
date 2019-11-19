@@ -27,7 +27,7 @@
 
 ```C++
 /** \brief Класс Новостей
- */
+*/
 class News
 {
 public:
@@ -56,28 +56,28 @@ public:
 int main()
 {
 	std::cout << "Hello world!" << std::endl;
-	
-	std::string path_database = "..//..//storage//forexprostools.dat"; // путь к базе данных новостей
-    ForexprostoolsDataStore::DataStore iDataStore(path_database);
 
-    /* получим минимальную и максимальную даты новостей
-     */
-    xtime::timestamp_t min_timestamp = 0, max_timestamp = 0;
-    iDataStore.get_min_max_timestamp(min_timestamp, max_timestamp);
-    std::cout 
+	std::string path_database = "..//..//storage//forexprostools.dat"; // путь к базе данных новостей
+	ForexprostoolsDataStore::DataStore iDataStore(path_database);
+
+	/* получим минимальную и максимальную даты новостей
+	 */
+	xtime::timestamp_t min_timestamp = 0, max_timestamp = 0;
+	iDataStore.get_min_max_timestamp(min_timestamp, max_timestamp);
+	std::cout 
 		<< "date: " 
 		<< xtime::get_str_date(min_timestamp) 
 		<< " - " 
 		<< xtime::get_str_date(max_timestamp) 
 		<< std::endl;
 
-    /* получим новости за один день */
-    std::vector<ForexprostoolsApiEasy::News> day_list_news;
-    iDataStore.get(
+	/* получим новости за один день */
+	std::vector<ForexprostoolsApiEasy::News> day_list_news;
+	iDataStore.get(
 		xtime::get_timestamp(15,11,2019), 
 		0, 
 		xtime::SECONDS_IN_DAY, day_list_news);
-	
+
 	for(size_t i = 0; i < day_list_news.size(); ++i) {
 		std::cout << "news: " << i << std::endl;
 		std::cout << xtime::get_str_date_time(day_list_news[i].timestamp) << std::endl;
@@ -89,11 +89,11 @@ int main()
 		std::cout << "actual: " << day_list_news[i].actual << std::endl;
 		std::cout << "forecast: " << day_list_news[i].forecast << std::endl;
 	}
-	
+
 	/* найдем новость с заданным уровнем волатильности в пределах 20 минут от метки времени */
 	for(xtime::timestamp_t t = min_timestamp; t <= max_timestamp; t += xtime::SECONDS_IN_MINUTE) {
-        int news_state = ForexprostoolsApiEasy::NO_NEWS;
-        iDataStore.filter(
+		int news_state = ForexprostoolsApiEasy::NO_NEWS;
+		iDataStore.filter(
 			"EURUSD", 
 			t, 
 			xtime::SECONDS_IN_HOUR/3, 
@@ -103,17 +103,17 @@ int main()
 			false, 
 			false, 
 			news_state);
-        if(news_state == ForexprostoolsApiEasy::NEWS_FOUND) {
-            std::cout 
+		if(news_state == ForexprostoolsApiEasy::NEWS_FOUND) {
+			std::cout 
 				<< "news_state: " 
 				<< news_state 
 				<< " date " 
 				<< xtime::get_str_date_time(t) 
 				<< std::endl;
-            break;
-        }
-    }
-	
+			break;
+		}
+	}
+
 	/* грузим ... историю */
 	ForexprostoolsApi api;
 
