@@ -189,7 +189,10 @@ namespace ForexprostoolsDataStore {
                 }
                 timestamp_beg = start_timestamp;
                 timestamp_end = stop_timestamp;
-            } else return NO_DATA_ACCESS;
+            }
+            /* хочется тут написать что то типа return NO_DATA_ACCESS ?
+             * НЕЕТ! НЕ НАДО ТУТ ЭТО ПИСАТЬ! ДАННЫЕ УЖЕ МОГУТ СОДЕРЖАТЬСЯ В hist!!!
+             */
             return hist.get_news(timestamp, indent_timestamp_past, indent_timestamp_future, news_data);
         }
 
