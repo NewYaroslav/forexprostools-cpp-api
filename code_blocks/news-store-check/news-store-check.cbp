@@ -12,9 +12,9 @@
 				<Option type="1" />
 				<Option compiler="mingw_64_7_3_0" />
 				<Compiler>
-					<Add option="-O2" />
 					<Add option="-std=c++11" />
 					<Add option="-pg" />
+					<Add option="-Og" />
 					<Add option="-g" />
 					<Add directory="../../lib/curl-7.60.0-win64-mingw/bin" />
 					<Add directory="../../lib/curl-7.60.0-win64-mingw/include" />

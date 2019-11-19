@@ -7,7 +7,7 @@
 
 using json = nlohmann::json;
 
-#define PROGRAM_VERSION "1.1"
+#define PROGRAM_VERSION "1.3"
 #define PROGRAM_DATE "19.11.2019"
 
 int main(int argc, char* argv[]) {
@@ -15,6 +15,11 @@ int main(int argc, char* argv[]) {
     std::string path_json;	// путь к файлу json с настройками
     std::string path_database; // путь к базе данных новостей
     bool is_use_day_off = true;
+
+    if(argc == 1) {
+        std::cout << "Error! No parameters!" << std::endl;
+        return -1;
+    }
 
     /* парсим команды */
     for(int i = 1; i < argc; ++i) {
@@ -85,7 +90,7 @@ int main(int argc, char* argv[]) {
     std::cout << "use day off: " << is_use_day_off << std::endl;
     std::cout << "start of download..." << std::endl;
 
-    ForexprostoolsDataStor::DataStore iDataStore(path_database);
+    ForexprostoolsDataStore::DataStore iDataStore(path_database);
 
     /* Определим начальное время загрузки данных
      * Если данные уже есть, обновим данные за последнюю неделю,
@@ -94,13 +99,22 @@ int main(int argc, char* argv[]) {
     xtime::timestamp_t min_timestamp = 0, max_timestamp = 0;
     iDataStore.get_min_max_timestamp(min_timestamp, max_timestamp);
     const xtime::timestamp_t SECONDS_IN_WEEK = xtime::SECONDS_IN_DAY*7;
-    if(min_timestamp > SECONDS_IN_WEEK) min_timestamp -= SECONDS_IN_WEEK;
-    else min_timestamp = 0;
+    if(max_timestamp > SECONDS_IN_WEEK) max_timestamp -= SECONDS_IN_WEEK;
+    else max_timestamp = 0;
+    /* отобразим дату данных, если есть корректные метки времени */
+    if(min_timestamp != 0 && max_timestamp != 0) {
+        std::cout
+            << "already downloaded, date: "
+            << xtime::get_str_date(min_timestamp)
+            << " - "
+            << xtime::get_str_date(max_timestamp)
+            << std::endl;
+    }
 
     /* начинаем згрузку данных  через API */
     int err = xquotes_common::OK;
     ForexprostoolsApi api;
-    api.download_and_save_all_data(min_timestamp, xtime::get_timestamp(), is_use_day_off, [&](
+    api.download_and_save_all_data(max_timestamp, xtime::get_timestamp(), is_use_day_off, [&](
             const std::vector<ForexprostoolsApiEasy::News> &list_news,
             const xtime::timestamp_t timestamp) {
         /* запишем полученне данные в хранилище  */

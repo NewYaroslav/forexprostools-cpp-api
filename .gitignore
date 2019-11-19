@@ -1,0 +1,10 @@
+*.depend
+*.layout
+*.o
+*.dll
+*testing/*/bin
+*code_blocks/*/bin
+*code_blocks/*/*.crt
+*code_blocks/*/*.out
+*code_blocks/*/*.exe
+

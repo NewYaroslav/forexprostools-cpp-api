@@ -58,7 +58,7 @@ int main()
 	std::cout << "Hello world!" << std::endl;
 	
 	std::string path_database = "..//..//storage//forexprostools.dat"; // путь к базе данных новостей
-    ForexprostoolsDataStor::DataStore iDataStore(path_database);
+    ForexprostoolsDataStore::DataStore iDataStore(path_database);
 
     /* получим минимальную и максимальную даты новостей
      */

@@ -27,7 +27,7 @@
 #include <ForexprostoolsApiEasy.hpp>
 #include "xquotes_json_storage.hpp"
 //------------------------------------------------------------------------------
-namespace ForexprostoolsDataStor {
+namespace ForexprostoolsDataStore {
     using namespace ForexprostoolsApiEasy;
 
     /** \brief Хранилище новостей
