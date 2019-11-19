@@ -42,7 +42,17 @@ int main(int argc, char* argv[]) {
             //std::cout << "date: " << xtime::get_str_date(min_timestamp) << " - " << xtime::get_str_date(max_timestamp) << std::endl;
         }
     }
+
     std::cout << "date: " << xtime::get_str_date(min_timestamp) << " - " << xtime::get_str_date(max_timestamp) << std::endl;
+
+    for(xtime::timestamp_t t = min_timestamp; t <= max_timestamp; t += xtime::SECONDS_IN_MINUTE) {
+        int news_state = ForexprostoolsApiEasy::NO_NEWS;
+        iDataStore.filter("EURUSD", t, xtime::SECONDS_IN_HOUR/3, xtime::SECONDS_IN_HOUR/3, true, true, false, false, news_state);
+        if(news_state == ForexprostoolsApiEasy::NEWS_FOUND) {
+            std::cout << "news_state: " << news_state << " date " << xtime::get_str_date_time(t) << std::endl;
+            break;
+        }
+    }
     return 0;
 }
 

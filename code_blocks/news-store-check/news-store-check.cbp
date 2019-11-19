@@ -14,6 +14,8 @@
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-std=c++11" />
+					<Add option="-pg" />
+					<Add option="-g" />
 					<Add directory="../../lib/curl-7.60.0-win64-mingw/bin" />
 					<Add directory="../../lib/curl-7.60.0-win64-mingw/include" />
 					<Add directory="../../lib/gzip-hpp/include" />
@@ -27,7 +29,7 @@
 					<Add directory="../../lib/zstd/lib" />
 				</Compiler>
 				<Linker>
-					<Add option="-s" />
+					<Add option="-pg -lgmon" />
 					<Add library="../../lib/curl-7.60.0-win64-mingw/lib/libcurl.a" />
 					<Add library="../../lib/curl-7.60.0-win64-mingw/lib/libcurl.dll.a" />
 					<Add library="zstd" />

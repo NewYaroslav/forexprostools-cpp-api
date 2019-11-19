@@ -32,25 +32,26 @@
 #include <string>
 #include <vector>
 #include <ForexprostoolsApiEasy.hpp>
+#include <ForexprostoolsDataStore.hpp>
 //------------------------------------------------------------------------------
 class ForexprostoolsApi
 {
 public:
 //------------------------------------------------------------------------------
-        /// Набор возможных состояний ошибки
-        enum ErrorType {
-                OK = 0,                         ///< Ошибок нет, все в порядке
-                NO_INIT = -1,                   ///< Нет инициализации
-                INIT_ERROR = -2,                ///< Ошибка инициализации
-                DECOMPRESSION_ERROR = -3,       ///< Ошибка декомпрессии
-                PARSER_ERROR = -4,              ///< Ошибка парсера
-                SUBSTRING_NOT_FOUND = -5,
-                NOT_ALL_DATA_DOWNLOADED = -8,
-        };
+    /// Набор возможных состояний ошибки
+    enum ErrorType {
+        OK = 0,                         ///< Ошибок нет, все в порядке
+        NO_INIT = -1,                   ///< Нет инициализации
+        INIT_ERROR = -2,                ///< Ошибка инициализации
+        DECOMPRESSION_ERROR = -3,       ///< Ошибка декомпрессии
+        PARSER_ERROR = -4,              ///< Ошибка парсера
+        SUBSTRING_NOT_FOUND = -5,       ///< Подстрока не найдена
+        NOT_ALL_DATA_DOWNLOADED = -8,   ///< Скачены не все данные
+    };
 //------------------------------------------------------------------------------
 private:
-        bool is_curl_global_init_error_ = false;
-        const int MAX_NUM_ATTEMPT = 10;
+        bool is_curl_global_init_error_ = false;                /**< Флаг ициализации глобальных переменных */
+        const int MAX_NUM_ATTEMPT = 10;                         /**< Максимальное количество попыток */
         std::string sert_file_;                                 /**< Имя файла сертефиката */
         std::vector<ForexprostoolsApiEasy::News> list_news_;    /**< Список новостей */
         //std::mutex list_news_mutex_;
@@ -160,273 +161,266 @@ private:
 //------------------------------------------------------------------------------
         int parse_response(std::string response, std::vector<ForexprostoolsApiEasy::News> &list_news)
         {
-                using json = nlohmann::json;
-                try {
-                        json j;
-                        j = json::parse(response);
-                        std::string text = j["renderedFilteredEvents"];
-                        const std::string header_beg = "<tr";
-                        const std::string header_end = "</tr>";
-                        std::size_t start_data_pos = 0;
-                        while(true) {
-                                ForexprostoolsApiEasy::News one_news;
-                                const int STATE_TIME = 0x01;
-                                const int STATE_NAME = 0x02;
-                                const int STATE_VOL = 0x04;
-                                const int STATE_DATA = 0x08;
-                                const int STATE_OK = 0x0F;
-                                int state = 0;
-                                std::size_t beg_pos = text.find(header_beg, start_data_pos);
-                                std::size_t end_pos = text.find(header_end, start_data_pos);
-                                if(beg_pos != std::string::npos &&
-                                        end_pos != std::string::npos) {
-                                        std::string part = text.substr(beg_pos, end_pos - beg_pos);
-                                        start_data_pos = end_pos + header_end.size();
-                                        // парсим part
-                                        const std::string str_event_timestamp = "event_timestamp=";
-                                        const std::string str_div_timestamp = "\"";
-                                        std::string str_time;
-                                        if(find_substring(part, str_event_timestamp, str_div_timestamp, str_div_timestamp, str_time) == OK) {
-                                                xtime::convert_str_to_timestamp(str_time, one_news.timestamp);
-                                                state |= STATE_TIME;
-                                                //if(is_t) std::cout << xtime::get_str_unix_date_time(one_news.timestamp) << std::endl;
-                                        } else {
-                                                continue;
-                                        }
-                                        // ищем значения
-                                        const std::string str_event_actual = "eventActual_";
-                                        const std::string str_event_forecast = "eventForecast_";
-                                        const std::string str_event_previous = "eventPrevious_";
-                                        const std::string str_nbsp = "&nbsp;";
-                                        const std::string str_div_beg = ">";
-                                        const std::string str_div_end = "<";
-                                        std::string str_previous, str_actual, str_forecast;
+            using json = nlohmann::json;
+            try {
+                json j;
+                j = json::parse(response);
+                std::string text = j["renderedFilteredEvents"];
+                const std::string header_beg = "<tr";
+                const std::string header_end = "</tr>";
+                std::size_t start_data_pos = 0;
+                while(true) {
+                    ForexprostoolsApiEasy::News one_news;
+                    const int STATE_TIME = 0x01;
+                    const int STATE_NAME = 0x02;
+                    const int STATE_VOL = 0x04;
+                    const int STATE_DATA = 0x08;
+                    const int STATE_OK = 0x0F;
+                    int state = 0;
+                    std::size_t beg_pos = text.find(header_beg, start_data_pos);
+                    std::size_t end_pos = text.find(header_end, start_data_pos);
+                    if( beg_pos != std::string::npos &&
+                        end_pos != std::string::npos) {
+                        std::string part = text.substr(beg_pos, end_pos - beg_pos);
+                        start_data_pos = end_pos + header_end.size();
+                        // парсим part
+                        const std::string str_event_timestamp = "event_timestamp=";
+                        const std::string str_div_timestamp = "\"";
+                        std::string str_time;
+                        if(find_substring(part, str_event_timestamp, str_div_timestamp, str_div_timestamp, str_time) == OK) {
+                            xtime::convert_str_to_timestamp(str_time, one_news.timestamp);
+                            state |= STATE_TIME;
+                        } else {
+                            continue;
+                        }
+                        // ищем значения
+                        const std::string str_event_actual = "eventActual_";
+                        const std::string str_event_forecast = "eventForecast_";
+                        const std::string str_event_previous = "eventPrevious_";
+                        const std::string str_nbsp = "&nbsp;";
+                        const std::string str_div_beg = ">";
+                        const std::string str_div_end = "<";
+                        std::string str_previous, str_actual, str_forecast;
 
-                                        if(find_substring(part, str_event_previous, str_div_beg, str_div_end, str_previous) == OK) {
-                                                if(str_previous.find(str_nbsp, 0) == std::string::npos) {
-                                                        one_news.previous = atof(str_previous.c_str());
-                                                        one_news.is_previous = true;
-                                                }
-                                                state |= STATE_DATA;
-                                        }
-                                        if(find_substring(part, str_event_actual, str_div_beg, str_div_end, str_actual) == OK) {
-                                                if(str_actual.find(str_nbsp, 0) == std::string::npos) {
-                                                        one_news.actual = atof(str_actual.c_str());
-                                                        one_news.is_actual = true;
-                                                }
-                                                state |= STATE_DATA;
-                                        }
-                                        if(find_substring(part, str_event_forecast, str_div_beg, str_div_end, str_forecast) == OK) {
-                                                if(str_forecast.find(str_nbsp, 0) == std::string::npos) {
-                                                        one_news.forecast = atof(str_forecast.c_str());
-                                                        one_news.is_forecast = true;
-                                                }
-                                                state |= STATE_DATA;
-                                        }
-                                        // определяем волатильность новости
-                                        const std::string str_sentiment_div_beg = "<td class=\"left textNum sentiment noWrap\" title=\"";
-                                        const std::string str_sentiment_div_end = "\"";
-                                        std::string str_sentiment;
-                                        if(find_substring(part, str_sentiment_div_beg, str_sentiment_div_end, str_sentiment) == OK) {
-                                                const std::string str_low = "Low";
-                                                const std::string str_moderate = "Moderate";
-                                                const std::string str_high = "High";
-                                                if(str_sentiment.find(str_low, 0) != std::string::npos) {
-                                                        one_news.level_volatility = ForexprostoolsApiEasy::LOW;
-                                                        state |= STATE_VOL;
-                                                        //if(is_t) std::cout << "sentiment " << str_low << std::endl;
-                                                } else
-                                                if(str_sentiment.find(str_moderate, 0) != std::string::npos) {
-                                                        one_news.level_volatility = ForexprostoolsApiEasy::MODERATE;
-                                                        state |= STATE_VOL;
-                                                        //if(is_t) std::cout << "sentiment " << str_moderate << std::endl;
-                                                } else
-                                                if(str_sentiment.find(str_high, 0) != std::string::npos) {
-                                                        one_news.level_volatility = ForexprostoolsApiEasy::HIGH;
-                                                        state |= STATE_VOL;
-                                                        //if(is_t) std::cout << "sentiment " << str_high << std::endl;
-                                                }
-                                        }
+                        if(find_substring(part, str_event_previous, str_div_beg, str_div_end, str_previous) == OK) {
+                            if(str_previous.find(str_nbsp, 0) == std::string::npos) {
+                                one_news.previous = atof(str_previous.c_str());
+                                one_news.is_previous = true;
+                            }
+                            state |= STATE_DATA;
+                        }
+                        if(find_substring(part, str_event_actual, str_div_beg, str_div_end, str_actual) == OK) {
+                            if(str_actual.find(str_nbsp, 0) == std::string::npos) {
+                                one_news.actual = atof(str_actual.c_str());
+                                one_news.is_actual = true;
+                            }
+                            state |= STATE_DATA;
+                        }
+                        if(find_substring(part, str_event_forecast, str_div_beg, str_div_end, str_forecast) == OK) {
+                            if(str_forecast.find(str_nbsp, 0) == std::string::npos) {
+                                one_news.forecast = atof(str_forecast.c_str());
+                                one_news.is_forecast = true;
+                            }
+                            state |= STATE_DATA;
+                        }
+                        // определяем волатильность новости
+                        const std::string str_sentiment_div_beg = "<td class=\"left textNum sentiment noWrap\" title=\"";
+                        const std::string str_sentiment_div_end = "\"";
+                        std::string str_sentiment;
+                        if(find_substring(part, str_sentiment_div_beg, str_sentiment_div_end, str_sentiment) == OK) {
+                            const std::string str_low = "Low";
+                            const std::string str_moderate = "Moderate";
+                            const std::string str_high = "High";
+                            if(str_sentiment.find(str_low, 0) != std::string::npos) {
+                                one_news.level_volatility = ForexprostoolsApiEasy::LOW;
+                                state |= STATE_VOL;
+                            } else
+                            if(str_sentiment.find(str_moderate, 0) != std::string::npos) {
+                                one_news.level_volatility = ForexprostoolsApiEasy::MODERATE;
+                                state |= STATE_VOL;
+                            } else
+                            if(str_sentiment.find(str_high, 0) != std::string::npos) {
+                                one_news.level_volatility = ForexprostoolsApiEasy::HIGH;
+                                state |= STATE_VOL;
+                            }
+                        }
 
-                                        // определяем имя новости
-                                        const std::string str_left_event_div_beg = "<td class=\"left event\">";
-                                        const std::string str_left_event_div_end = "<";
-                                        std::string str_left_event;
-                                        if(find_substring(part, str_left_event_div_beg, str_left_event_div_end, str_left_event) == OK) {
-                                                std::size_t nbsp_pos = str_left_event.find(str_nbsp, 0);
-                                                if(nbsp_pos != std::string::npos) {
-                                                        str_left_event.erase(nbsp_pos, str_nbsp.length());
-                                                }
-                                                // удаляем лишние пробелы и прочее
-                                                str_left_event.erase(std::remove_if(str_left_event.begin(), str_left_event.end(), [](char c){
-                                                        return c == '\t' || c == '\v' || c == '\n' || c == '\r';
-                                                        }), str_left_event.end());
+                        // определяем имя новости
+                        const std::string str_left_event_div_beg = "<td class=\"left event\">";
+                        const std::string str_left_event_div_end = "<";
+                        std::string str_left_event;
+                        if(find_substring(part, str_left_event_div_beg, str_left_event_div_end, str_left_event) == OK) {
+                            std::size_t nbsp_pos = str_left_event.find(str_nbsp, 0);
+                            if(nbsp_pos != std::string::npos) {
+                                str_left_event.erase(nbsp_pos, str_nbsp.length());
+                            }
+                            // удаляем лишние пробелы и прочее
+                            str_left_event.erase(std::remove_if(
+                                        str_left_event.begin(),
+                                        str_left_event.end(),
+                                        [](char c) {
+                                    return c == '\t' || c == '\v' || c == '\n' || c == '\r';
+                            }), str_left_event.end());
 
-                                                while(str_left_event.size() > 0 && std::isspace(str_left_event[0])) {
-                                                        str_left_event.erase(str_left_event.begin());
-                                                }
-                                                while(str_left_event.size() > 0 && std::isspace(str_left_event.back())) {
-                                                        str_left_event.erase(str_left_event.end() - 1);
-                                                }
-                                                str_left_event.erase(std::unique_copy(str_left_event.begin(), str_left_event.end(), str_left_event.begin(),
-                                                        [](char c1, char c2){
-                                                                return std::isspace(c1) && std::isspace(c2);
-                                                        }),
-                                                        str_left_event.end());
-                                                one_news.name = str_left_event;
-                                                state |= STATE_NAME;
-                                                //if(is_t) std::cout << "left_event " << str_left_event << std::endl;
-                                        }
-                                        // определяем страну валюты
-                                        const std::string str_flag_div_beg = "<td class=\"left flagCur noWrap\">";
-                                        const std::string str_flag_div_end = "</td>";
-                                        std::size_t flag_beg_pos = part.find(str_flag_div_beg, 0);
-                                        if(flag_beg_pos != std::string::npos) {
-                                                std::size_t flag_end_pos = part.find(str_flag_div_end, flag_beg_pos + str_flag_div_beg.size());
-                                                if(flag_end_pos != std::string::npos) {
-                                                        const std::string str_title = "title=";
-                                                        const std::string str_currency_beg = "</span>";
+                            while(str_left_event.size() > 0 && std::isspace(str_left_event[0])) {
+                                str_left_event.erase(str_left_event.begin());
+                            }
+                            while(str_left_event.size() > 0 && std::isspace(str_left_event.back())) {
+                                str_left_event.erase(str_left_event.end() - 1);
+                            }
+                            str_left_event.erase(std::unique_copy(
+                                    str_left_event.begin(),
+                                    str_left_event.end(),
+                                    str_left_event.begin(),
+                                    [](char c1, char c2){
+                                            return std::isspace(c1) && std::isspace(c2);
+                                    }),
+                                    str_left_event.end());
+                            one_news.name = str_left_event;
+                            state |= STATE_NAME;
+                        }
+                        // определяем страну валюты
+                        const std::string str_flag_div_beg = "<td class=\"left flagCur noWrap\">";
+                        const std::string str_flag_div_end = "</td>";
+                        std::size_t flag_beg_pos = part.find(str_flag_div_beg, 0);
+                        if(flag_beg_pos != std::string::npos) {
+                            std::size_t flag_end_pos = part.find(str_flag_div_end, flag_beg_pos + str_flag_div_beg.size());
+                            if(flag_end_pos != std::string::npos) {
+                                const std::string str_title = "title=";
+                                const std::string str_currency_beg = "</span>";
 
-                                                        std::size_t title_pos = part.find(str_title, flag_beg_pos + str_flag_div_beg.size());
-                                                        if(title_pos != std::string::npos) {
-                                                                const std::string str_div_timestamp = "\"";
-                                                                std::size_t beg_pos = part.find(str_div_timestamp, title_pos);
-                                                                if(beg_pos != std::string::npos) {
-                                                                        std::size_t end_pos = part.find(str_div_timestamp, beg_pos + 1);
-                                                                        if(end_pos != std::string::npos) {
-                                                                                // имя страны
-                                                                                one_news.country = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                                                                //if(is_t) std::cout << one_news.country << std::endl;
-                                                                        } // if
-                                                                } // if
-                                                        }
-
-                                                        std::size_t currency_pos = part.find(str_currency_beg, flag_beg_pos + str_flag_div_beg.size());
-                                                        if(currency_pos != std::string::npos) {
-                                                                // имя валюты
-                                                                std::string str_currency = part.substr(currency_pos + str_currency_beg.size(), flag_end_pos - currency_pos - str_currency_beg.size());
-                                                                str_currency.erase(std::remove_if(str_currency.begin(), str_currency.end(), ::isspace), str_currency.end());
-                                                                one_news.currency = str_currency;
-                                                                //if(is_t) std::cout << str_currency << std::endl;
-                                                        }
-                                                } // if
+                                std::size_t title_pos = part.find(str_title, flag_beg_pos + str_flag_div_beg.size());
+                                if(title_pos != std::string::npos) {
+                                    const std::string str_div_timestamp = "\"";
+                                    std::size_t beg_pos = part.find(str_div_timestamp, title_pos);
+                                    if(beg_pos != std::string::npos) {
+                                        std::size_t end_pos = part.find(str_div_timestamp, beg_pos + 1);
+                                        if(end_pos != std::string::npos) {
+                                            // имя страны
+                                            one_news.country = part.substr(beg_pos + 1, end_pos - beg_pos - 1);
+                                            //if(is_t) std::cout << one_news.country << std::endl;
                                         } // if
-                                        if(state == STATE_OK) {
-                                                list_news.push_back(one_news);
-                                        }
-                                } else {
-                                        break;
+                                    } // if
                                 }
-                        } // while
-                } //
+
+                                std::size_t currency_pos = part.find(str_currency_beg, flag_beg_pos + str_flag_div_beg.size());
+                                if(currency_pos != std::string::npos) {
+                                    // имя валюты
+                                    std::string str_currency = part.substr(currency_pos + str_currency_beg.size(), flag_end_pos - currency_pos - str_currency_beg.size());
+                                    str_currency.erase(std::remove_if(str_currency.begin(), str_currency.end(), ::isspace), str_currency.end());
+                                    one_news.currency = str_currency;
+                                    //if(is_t) std::cout << str_currency << std::endl;
+                                }
+                            } // if
+                        } // if
+                        if(state == STATE_OK) {
+                            list_news.push_back(one_news);
+                        }
+                    } else {
+                        break;
+                    }
+                } // while
+            } //
+            catch(...) {
+                    return PARSER_ERROR;
+            }
+            return OK;
+        }
+//------------------------------------------------------------------------------
+        static int writer(char *data, size_t size, size_t nmemb, std::string *buffer) {
+            int result = 0;
+            if (buffer != NULL) {
+                buffer->append(data, size * nmemb);
+                result = size * nmemb;
+            }
+            return result;
+        }
+//------------------------------------------------------------------------------
+        int do_post_request(std::string request_body, std::string &out, std::string sert_file) {
+            CURL *curl;
+            curl = curl_easy_init();
+            if(!curl) {
+                return INIT_ERROR;
+            }
+            const std::string url = ("https://sslecal2.forexprostools.com/ajax.php");
+            char error_buffer[CURL_ERROR_SIZE];
+            const int TIME_OUT = 60;
+            std::string buffer;
+
+            curl_easy_setopt(curl, CURLOPT_POST, 1); // делаем пост запрос
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_CAINFO, sert_file.c_str());
+            curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
+            curl_easy_setopt(curl, CURLOPT_HEADER, 0); // отключаем заголовок в ответе
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
+
+            struct curl_slist *http_headers = NULL;
+            http_headers = curl_slist_append(http_headers, "Host: sslecal2.forexprostools.com");
+            http_headers = curl_slist_append(http_headers, "Accept: application/json, text/javascript, */*; q=0.01");
+            http_headers = curl_slist_append(http_headers, "Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3");
+            http_headers = curl_slist_append(http_headers, "Accept-Encoding: gzip, deflate, br");
+            http_headers = curl_slist_append(http_headers, "Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
+            http_headers = curl_slist_append(http_headers, "X-Requested-With: XMLHttpRequest");
+            http_headers = curl_slist_append(http_headers, "Connection: keep-alive");
+            http_headers = curl_slist_append(http_headers, "Cache-Control: no-cache");
+            http_headers = curl_slist_append(http_headers, "Pragma: no-cache");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, http_headers);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIME_OUT);
+
+            CURLcode result;
+            result = curl_easy_perform(curl);
+            curl_slist_free_all(http_headers);
+            http_headers = NULL;
+
+            curl_easy_cleanup(curl);
+            if (result == CURLE_OK) {
+                try {
+                    const char *compressed_pointer = buffer.data();
+                    out = gzip::decompress(compressed_pointer, buffer.size());
+                }
                 catch(...) {
-                        return PARSER_ERROR;
+                    return DECOMPRESSION_ERROR;
                 }
                 return OK;
-        }
-//------------------------------------------------------------------------------
-        static int writer(char *data, size_t size, size_t nmemb, std::string *buffer)
-        {
-                int result = 0;
-                if (buffer != NULL) {
-                        buffer->append(data, size * nmemb);
-                        result = size * nmemb;
-                }
+            } else {
+                std::cout << "Error: [" << result << "] - " << error_buffer;
                 return result;
-        }
-//------------------------------------------------------------------------------
-        int do_post_request(std::string request_body, std::string &out, std::string sert_file)
-        {
-                CURL *curl;
-                curl = curl_easy_init();
-                if(!curl) {
-                        return INIT_ERROR;
-                }
-                const std::string url = ("https://sslecal2.forexprostools.com/ajax.php");
-                char error_buffer[CURL_ERROR_SIZE];
-                const int TIME_OUT = 60;
-                std::string buffer;
-
-                curl_easy_setopt(curl, CURLOPT_POST, 1); // делаем пост запрос
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_CAINFO, sert_file.c_str());
-                curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
-                curl_easy_setopt(curl, CURLOPT_HEADER, 0); // отключаем заголовок в ответе
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
-
-                struct curl_slist *http_headers = NULL;
-                http_headers = curl_slist_append(http_headers, "Host: sslecal2.forexprostools.com");
-                http_headers = curl_slist_append(http_headers, "Accept: application/json, text/javascript, */*; q=0.01");
-                http_headers = curl_slist_append(http_headers, "Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3");
-                http_headers = curl_slist_append(http_headers, "Accept-Encoding: gzip, deflate, br");
-                http_headers = curl_slist_append(http_headers, "Content-Type: application/x-www-form-urlencoded; charset=UTF-8");
-                http_headers = curl_slist_append(http_headers, "X-Requested-With: XMLHttpRequest");
-                http_headers = curl_slist_append(http_headers, "Connection: keep-alive");
-                http_headers = curl_slist_append(http_headers, "Cache-Control: no-cache");
-                http_headers = curl_slist_append(http_headers, "Pragma: no-cache");
-                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, http_headers);
-                curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
-                curl_easy_setopt(curl, CURLOPT_TIMEOUT, TIME_OUT);
-
-                CURLcode result;
-                result = curl_easy_perform(curl);
-                curl_slist_free_all(http_headers);
-                http_headers = NULL;
-
-                curl_easy_cleanup(curl);
-                if (result == CURLE_OK) {
-# if (0)
-                        std::cout << buffer << std::endl;
-                        std::cout << "size: " << buffer.size();
-# endif
-                        try {
-                                const char *compressed_pointer = buffer.data();
-                                out = gzip::decompress(compressed_pointer, buffer.size());
-                        }
-                        catch(...) {
-                                return DECOMPRESSION_ERROR;
-                        }
-                        return OK;
-                } else {
-                        std::cout << "Error: [" << result << "] - " << error_buffer;
-                        return result;
-                }
+            }
         }
 //------------------------------------------------------------------------------
 public:
-//------------------------------------------------------------------------------
         enum CounryCode {
-                Italy = 10,
-                South_Korea = 11,
-                Germany = 17,
-                France = 22,
-                Australia = 25,
-                Spain = 26,
-                Brazil = 32,
-                Japan = 35,
-                Singapore = 36,
-                China = 37,
-                Austria = 54,
-                Russia = 56,
-                Euro_Zone = 72,
-                United_Kingdom = 4,
-                United_States = 5,
-                Canada = 6,
-                South_Africa = 110,
-                Hong_Kong = 39,
-                New_Zealand = 43,
-                India = 14,
-                Switzerland = 12,
+            Italy = 10,
+            South_Korea = 11,
+            Germany = 17,
+            France = 22,
+            Australia = 25,
+            Spain = 26,
+            Brazil = 32,
+            Japan = 35,
+            Singapore = 36,
+            China = 37,
+            Austria = 54,
+            Russia = 56,
+            Euro_Zone = 72,
+            United_Kingdom = 4,
+            United_States = 5,
+            Canada = 6,
+            South_Africa = 110,
+            Hong_Kong = 39,
+            New_Zealand = 43,
+            India = 14,
+            Switzerland = 12,
         };
 //------------------------------------------------------------------------------
-        ForexprostoolsApi(std::string sert_file = "curl-ca-bundle.crt")
-        {
-                /* Должен инициализировать libcurl до запуска любых потоков */
-                if(curl_global_init(CURL_GLOBAL_ALL) !=0) {
-                        is_curl_global_init_error_ = true;
-                }
-                sert_file_ = sert_file;
+        ForexprostoolsApi(std::string sert_file = "curl-ca-bundle.crt") {
+            /* Должен инициализировать libcurl до запуска любых потоков */
+            if(curl_global_init(CURL_GLOBAL_ALL) !=0) {
+                is_curl_global_init_error_ = true;
+            }
+            sert_file_ = sert_file;
         }
 //------------------------------------------------------------------------------
         /** \brief Загрузить все новости за дату
@@ -435,17 +429,19 @@ public:
          * \param list_news список новостей
          * \return вернет 0 в случае успеха
          */
-        int download_all_news(unsigned long long beg_timestamp, unsigned long long end_timestamp, std::vector<ForexprostoolsApiEasy::News> &list_news)
-        {
-                if(is_curl_global_init_error_)
-                        return NO_INIT;
-                std::string request_body = get_request_body(beg_timestamp, end_timestamp);
-                std::string response;
-                int err = do_post_request(request_body, response, sert_file_);
-                if(err == OK) {
-                        err = parse_response(response, list_news);
-                }
-                return err;
+        int download_all_news(
+                const xtime::timestamp_t beg_timestamp,
+                const xtime::timestamp_t end_timestamp,
+                std::vector<ForexprostoolsApiEasy::News> &list_news) {
+            if(is_curl_global_init_error_)
+                return NO_INIT;
+            std::string request_body = get_request_body(beg_timestamp, end_timestamp);
+            std::string response;
+            int err = do_post_request(request_body, response, sert_file_);
+            if(err == OK) {
+                err = parse_response(response, list_news);
+            }
+            return err;
         }
 //------------------------------------------------------------------------------
         /** \brief Скачать и сохранить все доступыне данные по котировкам

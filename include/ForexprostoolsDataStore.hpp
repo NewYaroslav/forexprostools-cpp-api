@@ -169,7 +169,7 @@ namespace ForexprostoolsDataStor {
          * \param indent_timestamp_past Максимальный отступ до метки времени
          * \param indent_timestamp_future Максимальный отступ после метки времени
          * \param news_data Список новостей
-         * \return вернет 0 в случае отсутствия ошибок
+         * \return Вернет 0 в случае отсутствия ошибок
          */
         int get(
                 const xtime::timestamp_t timestamp,
@@ -179,22 +179,23 @@ namespace ForexprostoolsDataStor {
             const xtime::timestamp_t start_timestamp = xtime::get_first_timestamp_day(timestamp - indent_timestamp_past);
             const xtime::timestamp_t stop_timestamp = xtime::get_first_timestamp_day(timestamp + indent_timestamp_future);
 
-            // проверяем доступность данных
+            /* проверяем доступность данных */
             if(start_timestamp < timestamp_beg || stop_timestamp > timestamp_end) {
                 hist.clear();
-                for(unsigned long long t = start_timestamp; t <= stop_timestamp; t += xtime::SECONDS_IN_DAY) {
+                for(xtime::timestamp_t t = start_timestamp; t <= stop_timestamp; t += xtime::SECONDS_IN_DAY) {
                     std::vector<News> list_news;
-                    read_news(list_news, t);
-                    hist.add_news(list_news);
+                    int err = read_news(list_news, t);
+                    if(err == OK) hist.add_news(list_news);
                 }
                 timestamp_beg = start_timestamp;
                 timestamp_end = stop_timestamp;
-            }
+            } else return NO_DATA_ACCESS;
             return hist.get_news(timestamp, indent_timestamp_past, indent_timestamp_future, news_data);
         }
 
         /** \brief Фильтр новостей
-         * Данная функция поместит в state NEWS_FOUND, если есть новости, или NO_NEWS, если новостей нет
+         *
+         * Данный метод поместит в state NEWS_FOUND, если есть новости, или NO_NEWS, если новостей нет
          * \param pair_name имя валютной пары
          * \param timestamp Текущее время (Метка времени)
          * \param indent_timestamp_past Максимальный отступ до метки времени
@@ -210,6 +211,7 @@ namespace ForexprostoolsDataStor {
                 const xtime::timestamp_t indent_timestamp_future,
                 const int min_level_volatility,
                 int &state) {
+            state = NO_NEWS;
             std::string currency_1, currency_2;
             int err = get_currencies(pair_name, currency_1, currency_2);
             if(err != OK) return err;
@@ -218,7 +220,6 @@ namespace ForexprostoolsDataStor {
             err = get(timestamp, indent_timestamp_past, indent_timestamp_future, news_data);
             if(err != OK) return err;
 
-            state = NO_NEWS;
             for(size_t i = 0; i < news_data.size(); ++i) {
                 if((news_data[i].currency == currency_1 || news_data[i].currency == currency_2) &&
                 (news_data[i].level_volatility >= min_level_volatility)) {
@@ -227,6 +228,104 @@ namespace ForexprostoolsDataStor {
                 }
             }
             return OK;
+        }
+
+        /** \brief Фильтр новостей
+         *
+         * Данный метод поместит в state NEWS_FOUND, если есть новости, или NO_NEWS, если новостей нет
+         * \param pair_name имя валютной пары
+         * \param timestamp Текущее время (Метка времени)
+         * \param indent_timestamp_past Максимальный отступ до метки времени
+         * \param indent_timestamp_future Максимальный отступ после метки времени
+         * \param is_only_select Использовать только выбранные уровни силы новости.
+         * Если есть новость с другим уровнем силы, функция поместит в state NEWS_FOUND.
+         * \param is_low Использовать слабые новости.
+         * \param is_moderate Использовать новости средней силы.
+         * \param is_high Использовать сильные новости.
+         * \param state состояние фильтра (NEWS_FOUND или NO_NEWS)
+         * \return вернет 0 в случае успеха
+         */
+        int filter(
+                const std::string &pair_name,
+                const xtime::timestamp_t timestamp,
+                const xtime::timestamp_t indent_timestamp_past,
+                const xtime::timestamp_t indent_timestamp_future,
+                const bool is_only_select,
+                const bool is_low,
+                const bool is_moderate,
+                const bool is_high,
+                int &state) {
+            state = NO_NEWS;
+            std::string currency_1, currency_2;
+            int err = get_currencies(pair_name, currency_1, currency_2);
+            if(err != OK) return err;
+
+            std::vector<News> news_data;
+            err = get(timestamp, indent_timestamp_past, indent_timestamp_future, news_data);
+            if(err != OK) return err;
+            for(size_t i = 0; i < news_data.size(); ++i) {
+                if(news_data[i].currency != currency_1 &&
+                    news_data[i].currency != currency_2) continue;
+                if(news_data[i].level_volatility == ForexprostoolsApiEasy::LOW) {
+                    if(is_low) state = NEWS_FOUND;
+                    else if(is_only_select) {
+                        state = NO_NEWS;
+                        return OK;
+                    }
+                } else
+                if(news_data[i].level_volatility == ForexprostoolsApiEasy::MODERATE) {
+                    if(is_moderate) state = NEWS_FOUND;
+                    else if(is_only_select) {
+                        state = NO_NEWS;
+                        return OK;
+                    }
+                } else
+                if(news_data[i].level_volatility == ForexprostoolsApiEasy::HIGH) {
+                    if(is_high) state = NEWS_FOUND;
+                    else if(is_only_select) {
+                        state = NO_NEWS;
+                        return OK;
+                    }
+                }
+            }
+            return OK;
+        }
+
+        /** \brief Проверить новости
+         *
+         * Данный метод вернет true если есть новости или новость по указанным параметрам.
+         * \param pair_name имя валютной пары
+         * \param timestamp Текущее время (Метка времени)
+         * \param indent_timestamp_past Максимальный отступ до метки времени
+         * \param indent_timestamp_future Максимальный отступ после метки времени
+         * \param is_only_select Использовать только выбранные уровни силы новости.
+         * Если есть новость с другим уровнем силы, функция поместит в state NEWS_FOUND.
+         * \param is_low Использовать слабые новости.
+         * \param is_moderate Использовать новости средней силы.
+         * \param is_high Использовать сильные новости.
+         * \return вернет true если есть новость, подходящая по указанным параметрам
+         */
+        bool is_news(
+                const std::string &pair_name,
+                const xtime::timestamp_t timestamp,
+                const xtime::timestamp_t indent_timestamp_past,
+                const xtime::timestamp_t indent_timestamp_future,
+                const bool is_only_select,
+                const bool is_low,
+                const bool is_moderate,
+                const bool is_high) {
+            int state = NO_NEWS;
+            int err = filter(
+                pair_name,
+                timestamp,
+                indent_timestamp_past,
+                indent_timestamp_future,
+                is_only_select,
+                is_low,
+                is_moderate,
+                is_high,
+                state);
+            return (err == OK && state == NEWS_FOUND);
         }
     };
 }

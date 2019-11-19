@@ -7,8 +7,8 @@
 
 using json = nlohmann::json;
 
-#define PROGRAM_VERSION "1.0"
-#define PROGRAM_DATE "17.11.2019"
+#define PROGRAM_VERSION "1.1"
+#define PROGRAM_DATE "19.11.2019"
 
 int main(int argc, char* argv[]) {
     std::cout << "forexprostools downloader " << PROGRAM_VERSION << " " << PROGRAM_DATE << std::endl;

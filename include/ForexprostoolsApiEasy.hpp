@@ -23,7 +23,7 @@
 */
 #ifndef FOREXPROSTOOLSAPIEASY_HPP_INCLUDED
 #define FOREXPROSTOOLSAPIEASY_HPP_INCLUDED
-//------------------------------------------------------------------------------
+
 #include "banana_filesystem.hpp"
 #include <xtime.hpp>
 #include <nlohmann/json.hpp>
@@ -31,139 +31,150 @@
 #include <vector>
 #include <string>
 #include <cctype>
-//------------------------------------------------------------------------------
-namespace ForexprostoolsApiEasy
-{
-//------------------------------------------------------------------------------
+
+namespace ForexprostoolsApiEasy {
+
         /// Набор возможных состояний ошибки
         enum ErrorType {
-                OK = 0,                 ///< Ошибок нет, все в порядке
-                NO_ACCESS_DATA = -1,    ///< Нет доступа к данным
-                UNKNOWN_ERROR = -3,     ///< Неопределенная ошибка
-                PARSER_ERROR = -4,      ///< Ошибка парсера
-                INVALID_PARAMETER = -6, ///< Один из параметров неверно указан
+            OK = 0,                 ///< Ошибок нет, все в порядке
+            NO_DATA_ACCESS = -1,    ///< Нет доступа к данным
+            UNKNOWN_ERROR = -3,     ///< Неопределенная ошибка
+            PARSER_ERROR = -4,      ///< Ошибка парсера
+            INVALID_PARAMETER = -6, ///< Один из параметров неверно указан
         };
-//------------------------------------------------------------------------------
+
         /// Уровни волатильности
         enum VolatilityType {
-                NOT_INIT = -1,
-                LOW = 0,
-                MODERATE = 1,
-                HIGH = 2,
+            NOT_INIT = -1,
+            LOW = 0,        ///< Новости слабой силы
+            MODERATE = 1,   ///< Новости средней силы
+            HIGH = 2,       ///< Сильные новости
         };
-//------------------------------------------------------------------------------
+
+        /// Состояния фильтра
+        enum FilterState {
+            NEWS_FOUND = 0, ///< Есть новость или новости
+            NO_NEWS = 1,    ///< Новости не найдены
+        };
+
         /** \brief Класс Новостей
          */
-        class News
-        {
+        class News {
         public:
-                std::string name;                       /**< Имя новости */
-                std::string currency;                   /**< Валюта новости */
-                std::string country;                    /**< Страна новости */
-                int level_volatility = NOT_INIT;        /**< Уровень волатильности (-1 не инициализировано, 0,1,2) */
-                double previous = 0.0;                  /**< Предыдущее значение */
-                double actual = 0.0;                    /**< Актуальное значение */
-                double forecast = 0.0;                  /**< Предсказанное значение */
-                bool is_previous = false;               /**< Наличие предыдущего значения */
-                bool is_actual = false;                 /**< Наличие актуального значения */
-                bool is_forecast = false;               /**< Наличие предсказанного значения */
-                unsigned long long timestamp = 0;       /**< Временная метка новости */
+            std::string name;                       /**< Имя новости */
+            std::string currency;                   /**< Валюта новости */
+            std::string country;                    /**< Страна новости */
+            int level_volatility = NOT_INIT;        /**< Уровень волатильности (-1 не инициализировано, 0,1,2) */
+            double previous = 0.0;                  /**< Предыдущее значение */
+            double actual = 0.0;                    /**< Актуальное значение */
+            double forecast = 0.0;                  /**< Предсказанное значение */
+            bool is_previous = false;               /**< Наличие предыдущего значения */
+            bool is_actual = false;                 /**< Наличие актуального значения */
+            bool is_forecast = false;               /**< Наличие предсказанного значения */
+            xtime::timestamp_t timestamp = 0;       /**< Временная метка новости */
 
-                News() {};
+            News() {};
         };
-//------------------------------------------------------------------------------
+
         /** \brief Список новостей
+         *
+         * Данный класс хранит в себе массив новостей и позволяет получать к нему удобный доступ черех методы класса
          */
-        class NewsList
-        {
+        class NewsList {
         private:
-                std::vector<News> list_news_;
+            std::vector<News> list_news_;
         public:
-//------------------------------------------------------------------------------
-                NewsList() {};
-//------------------------------------------------------------------------------
-                /** \brief Добавить новости
-                 * \param list_news список новостей
-                 */
-                void add_news(std::vector<News> &list_news)
-                {
-                        list_news_.insert(list_news_.end(), list_news.begin(), list_news.end());
-                        std::sort(list_news_.begin(), list_news_.end(), [](const News &lhs, const News &rhs) {
-                                return lhs.timestamp < rhs.timestamp;
-                        });
-                }
-//------------------------------------------------------------------------------
-                /** \brief Инициализировать список новостей
-                 * \param list_news список новостей
-                 */
-                NewsList(std::vector<News> &list_news)
-                {
-                        add_news(list_news);
-                }
-//------------------------------------------------------------------------------
-                /** \brief Получить новости по временной метке
-                 * \param timestamp временная метка
-                 * \param time_indent_dn максимальный отступ до временной метки
-                 * \param time_indent_up максимальный отступ после временной метки
-                 * \param list_news список новостей
-                 * \return вернет 0 в случае успеха
-                 */
-                int get_news(
-                        unsigned long long timestamp,
-                        unsigned long long time_indent_dn,
-                        unsigned long long time_indent_up,
-                        std::vector<News> &list_news)
-                {
-                        if(list_news_.size() == 0) return NO_ACCESS_DATA;
-                        unsigned long long start_time = timestamp - time_indent_dn;
-                        unsigned long long stop_time = timestamp + time_indent_up;
-                        auto lower = std::lower_bound(list_news_.begin(), list_news_.end(), start_time, [](const News &lhs, unsigned long long rhs) {
-                                return lhs.timestamp < rhs;
-                        });
-                        auto upper = std::upper_bound(list_news_.begin(), list_news_.end(), stop_time, [](unsigned long long lhs, const News &rhs) {
-                                return lhs < rhs.timestamp;
-                        });
+            NewsList() {};
 
-                        if(lower == list_news_.end() && upper == list_news_.end()) {
-                                return NO_ACCESS_DATA;
-                        }
-                        if(lower == list_news_.begin() && upper == list_news_.begin()) {
-                                return NO_ACCESS_DATA;
-                        }
-                        list_news.clear();
-                        list_news.insert(list_news.begin(), lower, upper);
-                        return OK;
-                }
+        /** \brief Добавить новости
+         * \param list_news список новостей
+         */
+        void add_news(const std::vector<News> &list_news) {
+            list_news_.insert(list_news_.end(), list_news.begin(), list_news.end());
+            std::sort(list_news_.begin(), list_news_.end(), [](const News &lhs, const News &rhs) {
+                return lhs.timestamp < rhs.timestamp;
+            });
+        }
+
+        /** \brief Инициализировать список новостей
+         * \param list_news список новостей
+         */
+        NewsList(const std::vector<News> &list_news) {
+            add_news(list_news);
+        }
+
+        /** \brief Получить новости по метке времени
+         *
+         * \param timestamp Метка времени
+         * \param indent_timestamp_past Максимальный отступ до метки времени
+         * \param indent_timestamp_future Максимальный отступ после метки времени
+         * \param list_news Список новостей
+         * \return Ыернет 0 в случае успеха
+         */
+        int get_news(
+                const xtime::timestamp_t timestamp,
+                const xtime::timestamp_t indent_timestamp_past,
+                const xtime::timestamp_t indent_timestamp_future,
+                std::vector<News> &list_news) {
+            if(list_news_.size() == 0) return NO_DATA_ACCESS;
+            const xtime::timestamp_t start_time = timestamp - indent_timestamp_past;
+            const xtime::timestamp_t stop_time = timestamp + indent_timestamp_future;
+            auto lower = std::lower_bound(list_news_.begin(), list_news_.end(), start_time, [](const News &lhs, unsigned long long rhs) {
+                return lhs.timestamp < rhs;
+            });
+            auto upper = std::upper_bound(list_news_.begin(), list_news_.end(), stop_time, [](unsigned long long lhs, const News &rhs) {
+                return lhs < rhs.timestamp;
+            });
+
+            if(lower == list_news_.end() && upper == list_news_.end()) {
+                return NO_DATA_ACCESS;
+            } else
+            if(lower == list_news_.begin() && upper == list_news_.begin()) {
+                return NO_DATA_ACCESS;
+            } else
+            if(lower == list_news_.end() && upper == list_news_.begin()) {
+                return NO_DATA_ACCESS;//*
+            }
+            list_news.clear();
+            list_news.insert(list_news.begin(), lower, upper);
+            return OK;
+        }
+
+        /** \brief Получить новости по метке времени
+         * \param timestamp Метка времени
+         * \param indent_timestamp_past Максимальный отступ до метки времени
+         * \param indent_timestamp_future Максимальный отступ после метки времени
+         * \param list_news Список новостей
+         * \param time_diff Разница во времени между меткой врепмени и началом новости
+         * \return Вернет 0 в случае успеха
+         */
+        int get_news(
+                const xtime::timestamp_t timestamp,
+                const xtime::timestamp_t indent_timestamp_past,
+                const xtime::timestamp_t indent_timestamp_future,
+                std::vector<News> &list_news,
+                std::vector<long> &time_diff) {
+            int err = get_news(timestamp, indent_timestamp_past, indent_timestamp_future, list_news);
+            if(err != OK)
+                return err;
+            time_diff.resize(list_news.size());
+            for(size_t i = 0; i < list_news.size(); ++i) {
+                time_diff[i] = (long long)list_news[i].timestamp - (long long)timestamp;
+            }
+            return OK;
+        }
+
+        /** \brief Очистить список новостей
+         */
+        void clear() {
+            list_news_.clear();
+        }
+    };
 //------------------------------------------------------------------------------
-                /** \brief Получить новости по временной метке
-                 * \param timestamp временная метка
-                 * \param time_indent_dn максимальный отступ до временной метки
-                 * \param time_indent_up максимальный отступ после временной метки
-                 * \param list_news список новостей
-                 * \param time_diff разница во времени между временной меткой и началом новости
-                 * \return вернет 0 в случае успеха
-                 */
-                int get_news(
-                        unsigned long long timestamp,
-                        unsigned long long time_indent_dn,
-                        unsigned long long time_indent_up,
-                        std::vector<News> &list_news,
-                        std::vector<long> &time_diff)
-                {
-                        int err = get_news(timestamp, time_indent_dn, time_indent_up, list_news);
-                        if(err != OK)
-                                return err;
-                        time_diff.resize(list_news.size());
-                        for(size_t i = 0; i < list_news.size(); ++i) {
-                                time_diff[i] = (long long)list_news[i].timestamp - (long long)timestamp;
-                        }
-                        return OK;
-                }
-//------------------------------------------------------------------------------
-                void clear() {
-                        list_news_.clear();
-                }
-        };
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!!!!!!!!!!ДАЛЬШЕ УСТАРЕВШИЙ КОД! НЕ РЕКОМЕНДУЕТСЯ ИСПОЛЬЗОВАТЬ!!!!!!!!!!!!!
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//                               ¯\_(=_=)_/¯
 //------------------------------------------------------------------------------
         /** \brief Получить имя файла из даты
          * Выбрана последовательность ГОД МЕСЯЦ ДЕНЬ чтобы файлы были
@@ -297,11 +308,6 @@ namespace ForexprostoolsApiEasy
                 return get_beg_end_timestamp(file_list, file_extension, beg_timestamp, end_timestamp);
         }
 //------------------------------------------------------------------------------
-        enum FilterState {
-                NEWS_FOUND = 0,
-                NO_NEWS = 1,
-        };
-//------------------------------------------------------------------------------
         /** \brief База данных новостей
          */
         class DataBase {
@@ -382,7 +388,7 @@ namespace ForexprostoolsApiEasy
                 }
 
                 /** \brief Фильтр новостей
-                 * Данная функция поместит в state NEWS_FOUND, если есть новости, или NO_NEWS, если новостей нет
+                 * Данный метод поместит в state NEWS_FOUND, если есть новости, или NO_NEWS, если новостей нет
                  * \param _pair_name имя валютной пары
                  * \param _timestamp текущее время (временная метка)
                  * \param _time_indent_dn максимальный отступ до временной метки
