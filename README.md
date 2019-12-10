@@ -1,5 +1,7 @@
+![logo](doc/logo-640-160.png)
 # forexprostools-cpp-api
-Библиотека на С++ для загрузки новостей с Forexprostools.com
+
+C++ Библиотека для загрузки новостей с Forexprostools.com
 
 ## Описание
 Данная *header-only* библиотека содержит класс для взаимодействия с экономическим календарем [https://www.investing.com/webmaster-tools/economic-calendar](https://www.investing.com/webmaster-tools/economic-calendar)

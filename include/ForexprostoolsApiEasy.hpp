@@ -31,6 +31,7 @@
 #include <vector>
 #include <string>
 #include <cctype>
+#include <iomanip>
 
 namespace ForexprostoolsApiEasy {
 

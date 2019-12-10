@@ -1,3 +1,26 @@
+/*
+* forexprostools-cpp-api - Forexprostools C++ API client
+*
+* Copyright (c) 2018 Elektro Yar. Email: git.electroyar@gmail.com
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
 #include <iostream>
 #include <iomanip>
 #include <cctype>
@@ -7,8 +30,8 @@
 
 using json = nlohmann::json;
 
-#define PROGRAM_VERSION "1.3"
-#define PROGRAM_DATE "19.11.2019"
+#define PROGRAM_VERSION "1.4"
+#define PROGRAM_DATE "10.12.2019"
 
 int main(int argc, char* argv[]) {
     std::cout << "forexprostools downloader " << PROGRAM_VERSION << " " << PROGRAM_DATE << std::endl;
@@ -30,7 +53,7 @@ int main(int argc, char* argv[]) {
         if((value == "path_database") && (i + 1) < argc) {
             path_database = std::string(argv[i + 1]);
         }
-        if((value == "-nodayoff")) {
+        if((value == "-nodayoff" || value == "-ndo")) {
             is_use_day_off = false;
         }
     }
@@ -98,8 +121,8 @@ int main(int argc, char* argv[]) {
      */
     xtime::timestamp_t min_timestamp = 0, max_timestamp = 0;
     iDataStore.get_min_max_timestamp(min_timestamp, max_timestamp);
-    const xtime::timestamp_t SECONDS_IN_WEEK = xtime::SECONDS_IN_DAY*7;
-    if(max_timestamp > SECONDS_IN_WEEK) max_timestamp -= SECONDS_IN_WEEK;
+    const xtime::timestamp_t SECONDS_IN_WEEK = xtime::SECONDS_IN_DAY * xtime::DAYS_IN_WEEK;
+    if(max_timestamp > (2*SECONDS_IN_WEEK)) max_timestamp -= (2*SECONDS_IN_WEEK);
     else max_timestamp = 0;
     /* отобразим дату данных, если есть корректные метки времени */
     if(min_timestamp != 0 && max_timestamp != 0) {
@@ -114,7 +137,9 @@ int main(int argc, char* argv[]) {
     /* начинаем згрузку данных  через API */
     int err = xquotes_common::OK;
     ForexprostoolsApi api;
-    api.download_and_save_all_data(max_timestamp, xtime::get_timestamp(), is_use_day_off, [&](
+    const uint32_t days = xtime::DAYS_IN_WEEK * 2;
+    const xtime::timestamp_t stop_timestamp = xtime::get_first_timestamp_next_day(xtime::get_timestamp(), days);
+    api.download_and_save_all_data(max_timestamp, stop_timestamp, is_use_day_off, [&](
             const std::vector<ForexprostoolsApiEasy::News> &list_news,
             const xtime::timestamp_t timestamp) {
         /* запишем полученне данные в хранилище  */

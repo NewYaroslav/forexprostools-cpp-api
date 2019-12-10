@@ -35,9 +35,8 @@ namespace ForexprostoolsDataStore {
     class DataStore {
     private:
         xquotes_json_storage::JsonStorage iStorage;
-        std::string path;                       /**< Путь к базе данных */
-        unsigned long long timestamp_beg = 0;   /**< Метка времени начала исторических данных */
-        unsigned long long timestamp_end = 0;   /**< Метка времени конца исторических данных */
+        xtime::timestamp_t timestamp_beg = 0;   /**< Метка времени начала исторических данных */
+        xtime::timestamp_t timestamp_end = 0;   /**< Метка времени конца исторических данных */
         NewsList hist;                          /**< Исторические данные */
 
         /** \brief Разбить имя валютной пары на составляющие валюты
