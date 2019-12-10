@@ -5,10 +5,9 @@ C++ Библиотека для загрузки новостей с Forexprosto
 
 ## Описание
 Данная *header-only* библиотека содержит класс для взаимодействия с экономическим календарем [https://www.investing.com/webmaster-tools/economic-calendar](https://www.investing.com/webmaster-tools/economic-calendar)
-
 Класс *ForexprostoolsApi* позволяет загружать исторические данные за любой период. 
 
-На данный момент библиотека находится в разработке, поэтому в репозитории в любой момент может что-то поменяться.
+**На данный момент библиотека находится в разработке, поэтому в репозитории в любой момент может что-то поменяться.**
 
 ## Программа для загрузки новостей
 
@@ -142,3 +141,7 @@ int main()
 * *gcc* или *mingw* с поддержкой *C++11*, например: [https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/7.3.0/threads-posix/seh/x86_64-7.3.0-release-posix-seh-rt_v5-rev0.7z/download](https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/7.3.0/threads-posix/seh/x86_64-7.3.0-release-posix-seh-rt_v5-rev0.7z/download)
 
 Все необходимые библиотеки добавлены, как субмодули, в папку lib. 
+
+## Полезная информация
+
+Файл *list_all_news.txt* содержит список всех новостей с уникальным именем. Справа от имени расположено количество новостей за весь период истории. В конце файла указано количество уникальных имен новостей.
