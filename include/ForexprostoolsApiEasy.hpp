@@ -35,57 +35,57 @@
 
 namespace ForexprostoolsApiEasy {
 
-        /// Набор возможных состояний ошибки
-        enum ErrorType {
-            OK = 0,                 ///< Ошибок нет, все в порядке
-            NO_DATA_ACCESS = -1,    ///< Нет доступа к данным
-            UNKNOWN_ERROR = -3,     ///< Неопределенная ошибка
-            PARSER_ERROR = -4,      ///< Ошибка парсера
-            INVALID_PARAMETER = -6, ///< Один из параметров неверно указан
-        };
+    /// Набор возможных состояний ошибки
+    enum ErrorType {
+        OK = 0,                 ///< Ошибок нет, все в порядке
+        NO_DATA_ACCESS = -1,    ///< Нет доступа к данным
+        UNKNOWN_ERROR = -3,     ///< Неопределенная ошибка
+        PARSER_ERROR = -4,      ///< Ошибка парсера
+        INVALID_PARAMETER = -6, ///< Один из параметров неверно указан
+    };
 
-        /// Уровни волатильности
-        enum VolatilityType {
-            NOT_INIT = -1,
-            LOW = 0,        ///< Новости слабой силы
-            MODERATE = 1,   ///< Новости средней силы
-            HIGH = 2,       ///< Сильные новости
-        };
+    /// Уровни волатильности
+    enum VolatilityType {
+        NOT_INIT = -1,
+        LOW = 0,        ///< Новости слабой силы
+        MODERATE = 1,   ///< Новости средней силы
+        HIGH = 2,       ///< Сильные новости
+    };
 
-        /// Состояния фильтра
-        enum FilterState {
-            NEWS_FOUND = 0, ///< Есть новость или новости
-            NO_NEWS = 1,    ///< Новости не найдены
-        };
+    /// Состояния фильтра
+    enum FilterState {
+        NEWS_FOUND = 0, ///< Есть новость или новости
+        NO_NEWS = 1,    ///< Новости не найдены
+    };
 
-        /** \brief Класс Новостей
-         */
-        class News {
-        public:
-            std::string name;                       /**< Имя новости */
-            std::string currency;                   /**< Валюта новости */
-            std::string country;                    /**< Страна новости */
-            int level_volatility = NOT_INIT;        /**< Уровень волатильности (-1 не инициализировано, 0,1,2) */
-            double previous = 0.0;                  /**< Предыдущее значение */
-            double actual = 0.0;                    /**< Актуальное значение */
-            double forecast = 0.0;                  /**< Предсказанное значение */
-            bool is_previous = false;               /**< Наличие предыдущего значения */
-            bool is_actual = false;                 /**< Наличие актуального значения */
-            bool is_forecast = false;               /**< Наличие предсказанного значения */
-            xtime::timestamp_t timestamp = 0;       /**< Временная метка новости */
+    /** \brief Класс Новостей
+     */
+    class News {
+    public:
+        std::string name;                       /**< Имя новости */
+        std::string currency;                   /**< Валюта новости */
+        std::string country;                    /**< Страна новости */
+        int level_volatility = NOT_INIT;        /**< Уровень волатильности (-1 не инициализировано, 0,1,2) */
+        double previous = 0.0;                  /**< Предыдущее значение */
+        double actual = 0.0;                    /**< Актуальное значение */
+        double forecast = 0.0;                  /**< Предсказанное значение */
+        bool is_previous = false;               /**< Наличие предыдущего значения */
+        bool is_actual = false;                 /**< Наличие актуального значения */
+        bool is_forecast = false;               /**< Наличие предсказанного значения */
+        xtime::timestamp_t timestamp = 0;       /**< Временная метка новости */
 
-            News() {};
-        };
+        News() {};
+    };
 
-        /** \brief Список новостей
-         *
-         * Данный класс хранит в себе массив новостей и позволяет получать к нему удобный доступ черех методы класса
-         */
-        class NewsList {
-        private:
-            std::vector<News> list_news_;
-        public:
-            NewsList() {};
+    /** \brief Список новостей
+     *
+     * Данный класс хранит в себе массив новостей и позволяет получать к нему удобный доступ черех методы класса
+     */
+    class NewsList {
+    private:
+        std::vector<News> list_news_;
+    public:
+        NewsList() {};
 
         /** \brief Добавить новости
          * \param list_news список новостей
@@ -171,6 +171,87 @@ namespace ForexprostoolsApiEasy {
             list_news_.clear();
         }
     };
+
+    /** \brief Разбить имя валютной пары на составляющие валюты
+     * \param pair_name имя валютной пары
+     * \param currency_1 первая валюта валютной пары
+     * \param currency_2 вторая валюта валютной пары
+     * \return вернет 0 в случае успеха
+     */
+    int get_currencies(
+            std::string pair_name,
+            std::string &currency_1,
+            std::string &currency_2) {
+        const size_t NAME_LEN = 6;
+        if(pair_name.size() < NAME_LEN) return INVALID_PARAMETER;
+        pair_name.erase(std::remove_if(pair_name.begin(), pair_name.end(), [](int c) {
+            return !std::isalpha(c);
+        }), pair_name.end());
+        const std::string str_del = "frx";
+        std::string::size_type pos = pair_name.find(str_del);
+        while(pos != std::string::npos) {
+            pair_name.erase(pos, str_del.size());
+            pos = pair_name.find(str_del, pos + 1);
+        }
+        std::transform(pair_name.begin(), pair_name.end(),pair_name.begin(), ::toupper);
+        if(pair_name.size() != NAME_LEN) return INVALID_PARAMETER;
+        currency_1 = pair_name.substr(0, 3);
+        currency_2 = pair_name.substr(3, 3);
+        return OK;
+    }
+
+    /** \brief Проверить содержание имени валюты в валютной паре
+     * \param pair_name Валютная пара
+     * \param currency Валюта
+     * \return Вернет true, если валютная пара содержит указанную валюту
+     */
+    bool is_currency(std::string pair_name, std::string currency) {
+        int err = ForexprostoolsApiEasy::OK;
+        std::string currency_1;
+        std::string currency_2;
+        if((err = get_currencies(pair_name, currency_1, currency_2)) !=
+            ForexprostoolsApiEasy::OK) return false;
+        if(currency_1 == currency || currency_2 == currency) return true;
+        return false;
+    }
+
+    /** \brief Проверить содержание имени валюты в начале имени валютной пары
+     * \param pair_name Валютная пара
+     * \param currency Валюта
+     * \return Вернет true, если валютная пара находится в начале имени валютной пары
+     */
+    bool is_first_currency(std::string pair_name, std::string currency) {
+        int err = ForexprostoolsApiEasy::OK;
+        std::string currency_1;
+        std::string currency_2;
+        if((err = get_currencies(pair_name, currency_1, currency_2)) !=
+            ForexprostoolsApiEasy::OK) return false;
+        if(currency_1 == currency) return true;
+        return false;
+    }
+
+    enum class CurrencyPairNameAnalysisResults {
+        ERROR_ANALYZING_NAME_CURRENCY_PAIR = -2,
+        CURRENCY_NOT_FOUND = -1,
+        CURRENCY_NUMERATOR = 0,
+        CURRENCY_DENOMINATOR = 1
+    };
+
+    /** \brief Разбить имя валютной пары на составляющие валюты
+     * \param pair_name Имя валютной пары
+     * \param currency Валюта
+     * \return вернет состояние, указанное в CurrencyPairNameAnalysisResults
+     */
+    CurrencyPairNameAnalysisResults analyze_name_currency_pair(
+            const std::string &pair_name,
+            const std::string &currency) {
+        std::string currency_1, currency_2;
+        if(get_currencies(pair_name, currency_1, currency_2) != OK)
+            return CurrencyPairNameAnalysisResults::ERROR_ANALYZING_NAME_CURRENCY_PAIR;
+        if(currency_1 == currency) return CurrencyPairNameAnalysisResults::CURRENCY_NUMERATOR;
+        if(currency_2 == currency) return CurrencyPairNameAnalysisResults::CURRENCY_DENOMINATOR;
+        return CurrencyPairNameAnalysisResults::CURRENCY_NOT_FOUND;
+    }
 //------------------------------------------------------------------------------
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!!!!!!!!!!!ДАЛЬШЕ УСТАРЕВШИЙ КОД! НЕ РЕКОМЕНДУЕТСЯ ИСПОЛЬЗОВАТЬ!!!!!!!!!!!!!
