@@ -151,9 +151,27 @@ namespace ForexprostoolsDataStore {
                     auto it_previous = j[i].find("previous");
                     auto it_actual = j[i].find("actual");
                     auto it_forecast = j[i].find("forecast");
-                    if(it_previous != j[i].end()) list_news[i].previous = *it_previous;
-                    if(it_actual != j[i].end()) list_news[i].actual = *it_actual;
-                    if(it_forecast != j[i].end()) list_news[i].forecast = *it_forecast;
+                    if(it_previous != j[i].end()) {
+                        list_news[i].previous = *it_previous;
+                        list_news[i].is_previous = true;
+                    } else {
+                        list_news[i].previous = 0;
+                        list_news[i].is_previous = false;
+                    }
+                    if(it_actual != j[i].end()) {
+                        list_news[i].actual = *it_actual;
+                        list_news[i].is_actual = true;
+                    } else {
+                        list_news[i].actual = 0;
+                        list_news[i].is_actual = true;
+                    }
+                    if(it_forecast != j[i].end()) {
+                        list_news[i].forecast = *it_forecast;
+                        list_news[i].is_forecast = true;
+                    } else {
+                        list_news[i].forecast = 0;
+                        list_news[i].is_forecast = true;
+                    }
                 }
             }
             catch(...) {

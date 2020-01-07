@@ -32,9 +32,9 @@ int main(int argc, char* argv[]) {
             std::cout << "currency: " << day_list_news[i].currency << std::endl;
             std::cout << "country: " << day_list_news[i].country << std::endl;
             std::cout << "level_volatility: " << day_list_news[i].level_volatility << std::endl;
-            std::cout << "previous: " << day_list_news[i].previous << std::endl;
-            std::cout << "actual: " << day_list_news[i].actual << std::endl;
-            std::cout << "forecast: " << day_list_news[i].forecast << std::endl;
+            if(day_list_news[i].is_previous) std::cout << "previous: " << day_list_news[i].previous << std::endl;
+            if(day_list_news[i].is_actual) std::cout << "actual: " << day_list_news[i].actual << std::endl;
+            if(day_list_news[i].is_forecast) std::cout << "forecast: " << day_list_news[i].forecast << std::endl;
         }
         if(false) {
             //iDataStore.write_news(day_list_news,  xtime::get_timestamp(13,11,2019));
