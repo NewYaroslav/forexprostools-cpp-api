@@ -128,9 +128,9 @@ int main(int argc, char* argv[]) {
         }
         if(path_database.size() != 0) {
             path_database = std::string(env_ptr) + "\\" + path_database;
-            sert_file = std::string(env_ptr) + "\\" + sert_file;
         }
         else path_database = std::string(env_ptr);
+		sert_file = std::string(env_ptr) + "\\" + sert_file;
     }
 
     /* создаем папку */
