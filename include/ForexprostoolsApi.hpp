@@ -34,10 +34,9 @@
 #include <ForexprostoolsApiEasy.hpp>
 #include <ForexprostoolsDataStore.hpp>
 //------------------------------------------------------------------------------
-class ForexprostoolsApi
-{
+class ForexprostoolsApi {
 public:
-//------------------------------------------------------------------------------
+
     /// Набор возможных состояний ошибки
     enum ErrorType {
         OK = 0,                         ///< Ошибок нет, все в порядке
@@ -48,73 +47,74 @@ public:
         SUBSTRING_NOT_FOUND = -5,       ///< Подстрока не найдена
         NOT_ALL_DATA_DOWNLOADED = -8,   ///< Скачены не все данные
     };
-//------------------------------------------------------------------------------
+
 private:
         bool is_curl_global_init_error_ = false;                /**< Флаг ициализации глобальных переменных */
-        const int MAX_NUM_ATTEMPT = 10;                         /**< Максимальное количество попыток */
+        //const int MAX_NUM_ATTEMPT = 10;                         /**< Максимальное количество попыток */
         std::string sert_file_;                                 /**< Имя файла сертефиката */
         std::vector<ForexprostoolsApiEasy::News> list_news_;    /**< Список новостей */
-        //std::mutex list_news_mutex_;
-//------------------------------------------------------------------------------
+
         /** \brief Получить тело запроса
          * \param beg_timestamp временная метка начала экономических новостей
          * \param end_timestamp временная метка конца экономических новостей
          * \param countrys страны новостей
          * \return тело запроса
          */
-        std::string get_request_body(unsigned long long beg_timestamp, unsigned long long end_timestamp, std::vector<int> countrys = std::vector<int>())
-        {
-                xtime::DateTime start_time(beg_timestamp), stop_time(end_timestamp);
-                std::string request_body =
-                "dateFrom=" + std::to_string(start_time.year) + "-" + std::to_string(start_time.month) + "-" + std::to_string(start_time.day) + "&"
-                "dateTo=" + std::to_string(stop_time.year) + "-" + std::to_string(stop_time.month) + "-" + std::to_string(stop_time.day) + "&"
-                "timeframe=&"
-                "columns[]=exc_flags&"
-                "columns[]=exc_currency&"
-                "columns[]=exc_importance&"
-                "columns[]=exc_actual&"
-                "columns[]=exc_forecast&"
-                "columns[]=exc_previous&"
-                "timeZone=55&" // время GMT
-                "quotes_search_text=&";
-                if(countrys.size() == 0) {
-                        request_body +=
-                                "country[]=4&country[]=5&country[]=6&country[]=7&"
-                                "country[]=9&country[]=10&country[]=11&country[]=12&"
-                                "country[]=14&country[]=15&country[]=17&country[]=20&"
-                                "country[]=21&country[]=22&country[]=23&country[]=24&"
-                                "country[]=25&country[]=26&country[]=27&country[]=29&"
-                                "country[]=32&country[]=33&country[]=34&country[]=35&"
-                                "country[]=36&country[]=37&country[]=38&country[]=39&"
-                                "country[]=41&country[]=42&country[]=43&country[]=44&"
-                                "country[]=45&country[]=46&country[]=47&country[]=48&"
-                                "country[]=51&country[]=52&country[]=53&country[]=54&"
-                                "country[]=55&country[]=56&country[]=57&country[]=59&"
-                                "country[]=60&country[]=61&country[]=63&country[]=66&"
-                                "country[]=68&country[]=70&country[]=71&country[]=72&"
-                                "country[]=75&country[]=78&country[]=80&country[]=84&"
-                                "country[]=85&country[]=87&country[]=89&country[]=90&"
-                                "country[]=92&country[]=93&country[]=94&country[]=96&"
-                                "country[]=97&country[]=100&country[]=102&country[]=103&"
-                                "country[]=105&country[]=106&country[]=107&country[]=109&"
-                                "country[]=110&country[]=111&country[]=112&country[]=113&"
-                                "country[]=119&country[]=121&country[]=122&country[]=123&"
-                                "country[]=125&country[]=138&country[]=139&country[]=143&"
-                                "country[]=145&country[]=162&country[]=163&country[]=170&"
-                                "country[]=172&country[]=174&country[]=178&country[]=188&"
-                                "country[]=193&country[]=202&country[]=238&country[]=247&";
-                } else {
-                        for(size_t i = 0; i < countrys.size(); ++i) {
-                                request_body += "country[]=" + std::to_string(countrys[i]) + "&";
-                        }
-                }
+        std::string get_request_body(
+                const xtime::timestamp_t beg_timestamp,
+                const xtime::timestamp_t end_timestamp,
+                const std::vector<int> &countrys = std::vector<int>()) {
+            xtime::DateTime start_time(beg_timestamp), stop_time(end_timestamp);
+            std::string request_body =
+            "dateFrom=" + std::to_string(start_time.year) + "-" + std::to_string(start_time.month) + "-" + std::to_string(start_time.day) + "&"
+            "dateTo=" + std::to_string(stop_time.year) + "-" + std::to_string(stop_time.month) + "-" + std::to_string(stop_time.day) + "&"
+            "timeframe=&"
+            "columns[]=exc_flags&"
+            "columns[]=exc_currency&"
+            "columns[]=exc_importance&"
+            "columns[]=exc_actual&"
+            "columns[]=exc_forecast&"
+            "columns[]=exc_previous&"
+            "timeZone=55&" // время GMT
+            "quotes_search_text=&";
+            if(countrys.size() == 0) {
                 request_body +=
-                        "timeFilter=timeOnly&" // фильтр, только время
-                        "action=filter&"
-                        "lang=1"; // язык EN
-                return request_body;
+                    "country[]=4&country[]=5&country[]=6&country[]=7&"
+                    "country[]=9&country[]=10&country[]=11&country[]=12&"
+                    "country[]=14&country[]=15&country[]=17&country[]=20&"
+                    "country[]=21&country[]=22&country[]=23&country[]=24&"
+                    "country[]=25&country[]=26&country[]=27&country[]=29&"
+                    "country[]=32&country[]=33&country[]=34&country[]=35&"
+                    "country[]=36&country[]=37&country[]=38&country[]=39&"
+                    "country[]=41&country[]=42&country[]=43&country[]=44&"
+                    "country[]=45&country[]=46&country[]=47&country[]=48&"
+                    "country[]=51&country[]=52&country[]=53&country[]=54&"
+                    "country[]=55&country[]=56&country[]=57&country[]=59&"
+                    "country[]=60&country[]=61&country[]=63&country[]=66&"
+                    "country[]=68&country[]=70&country[]=71&country[]=72&"
+                    "country[]=75&country[]=78&country[]=80&country[]=84&"
+                    "country[]=85&country[]=87&country[]=89&country[]=90&"
+                    "country[]=92&country[]=93&country[]=94&country[]=96&"
+                    "country[]=97&country[]=100&country[]=102&country[]=103&"
+                    "country[]=105&country[]=106&country[]=107&country[]=109&"
+                    "country[]=110&country[]=111&country[]=112&country[]=113&"
+                    "country[]=119&country[]=121&country[]=122&country[]=123&"
+                    "country[]=125&country[]=138&country[]=139&country[]=143&"
+                    "country[]=145&country[]=162&country[]=163&country[]=170&"
+                    "country[]=172&country[]=174&country[]=178&country[]=188&"
+                    "country[]=193&country[]=202&country[]=238&country[]=247&";
+            } else {
+                for(size_t i = 0; i < countrys.size(); ++i) {
+                    request_body += "country[]=" + std::to_string(countrys[i]) + "&";
+                }
+            }
+            request_body +=
+                "timeFilter=timeOnly&" // фильтр, только время
+                "action=filter&"
+                "lang=1"; // язык EN
+            return request_body;
         }
-//------------------------------------------------------------------------------
+
         /** \brief Найти подстроку
          * \param word слово, где ищем подстроку
          * \param terminator_beg разделитель строки начала подстроки
@@ -122,19 +122,22 @@ private:
          * \param out найденная подстрока
          * \return вернет 0 в случае успеха
          */
-        int find_substring(std::string &word, std::string terminator_beg, std::string terminator_end, std::string &out)
-        {
-                std::size_t beg_pos = word.find(terminator_beg, 0);
-                if(beg_pos != std::string::npos) {
-                        std::size_t end_pos = word.find(terminator_end, beg_pos + terminator_beg.size());
-                        if(end_pos != std::string::npos) {
-                                out = word.substr(beg_pos + terminator_beg.size(), end_pos - beg_pos - terminator_beg.size());
-                                return OK;
-                        } // if
+        int find_substring(
+                const std::string &word,
+                const std::string &terminator_beg,
+                const std::string &terminator_end,
+                std::string &out) {
+            std::size_t beg_pos = word.find(terminator_beg, 0);
+            if(beg_pos != std::string::npos) {
+                std::size_t end_pos = word.find(terminator_end, beg_pos + terminator_beg.size());
+                if(end_pos != std::string::npos) {
+                    out = word.substr(beg_pos + terminator_beg.size(), end_pos - beg_pos - terminator_beg.size());
+                    return OK;
                 } // if
-                return SUBSTRING_NOT_FOUND;
+            } // if
+            return SUBSTRING_NOT_FOUND;
         }
-//------------------------------------------------------------------------------
+
         /** \brief Найти подстроку
          * \param word слово, где ищем подстроку
          * \param title заголовок подстроки
@@ -143,24 +146,29 @@ private:
          * \param out найденная подстрока
          * \return вернет 0 в случае успеха
          */
-        int find_substring(std::string &word, std::string title, std::string terminator_beg, std::string terminator_end, std::string &out)
-        {
-                std::size_t title_pos = word.find(title, 0);
-                if(title_pos != std::string::npos) {
-                        std::size_t beg_pos = word.find(terminator_beg, title_pos);
-                        if(beg_pos != std::string::npos) {
-                                std::size_t end_pos = word.find(terminator_end, beg_pos + 1);
-                                if(end_pos != std::string::npos) {
-                                        out = word.substr(beg_pos + 1, end_pos - beg_pos - 1);
-                                        return OK;
-                                } // if
-                        } // if
-                }
-                return SUBSTRING_NOT_FOUND;
+        int find_substring(
+                const std::string &word,
+                const std::string &title,
+                const std::string &terminator_beg,
+                const std::string &terminator_end,
+                std::string &out) {
+            std::size_t title_pos = word.find(title, 0);
+            if(title_pos != std::string::npos) {
+                std::size_t beg_pos = word.find(terminator_beg, title_pos);
+                if(beg_pos != std::string::npos) {
+                    std::size_t end_pos = word.find(terminator_end, beg_pos + 1);
+                    if(end_pos != std::string::npos) {
+                        out = word.substr(beg_pos + 1, end_pos - beg_pos - 1);
+                        return OK;
+                    } // if
+                } // if
+            }
+            return SUBSTRING_NOT_FOUND;
         }
 //------------------------------------------------------------------------------
-        int parse_response(std::string response, std::vector<ForexprostoolsApiEasy::News> &list_news)
-        {
+        int parse_response(
+                const std::string &response,
+                std::vector<ForexprostoolsApiEasy::News> &list_news) {
             using json = nlohmann::json;
             try {
                 json j;
@@ -187,7 +195,11 @@ private:
                         const std::string str_event_timestamp = "event_timestamp=";
                         const std::string str_div_timestamp = "\"";
                         std::string str_time;
-                        if(find_substring(part, str_event_timestamp, str_div_timestamp, str_div_timestamp, str_time) == OK) {
+                        if(find_substring(part,
+                                str_event_timestamp,
+                                str_div_timestamp,
+                                str_div_timestamp,
+                                str_time) == OK) {
                             xtime::convert_str_to_timestamp(str_time, one_news.timestamp);
                             state |= STATE_TIME;
                         } else {
@@ -326,7 +338,7 @@ private:
             }
             return OK;
         }
-//------------------------------------------------------------------------------
+
         static int writer(char *data, size_t size, size_t nmemb, std::string *buffer) {
             int result = 0;
             if (buffer != NULL) {
@@ -335,8 +347,11 @@ private:
             }
             return result;
         }
-//------------------------------------------------------------------------------
-        int do_post_request(std::string request_body, std::string &out, std::string sert_file) {
+
+        int do_post_request(
+                const std::string &request_body,
+                std::string &out,
+                const std::string &sert_file) {
             CURL *curl;
             curl = curl_easy_init();
             if(!curl) {
@@ -375,7 +390,7 @@ private:
             http_headers = NULL;
 
             curl_easy_cleanup(curl);
-            if (result == CURLE_OK) {
+            if(result == CURLE_OK) {
                 try {
                     const char *compressed_pointer = buffer.data();
                     out = gzip::decompress(compressed_pointer, buffer.size());
@@ -384,10 +399,9 @@ private:
                     return DECOMPRESSION_ERROR;
                 }
                 return OK;
-            } else {
-                std::cout << "Error: [" << result << "] - " << error_buffer;
-                return result;
             }
+            std::cerr << "Error: [" << result << "] - " << error_buffer;
+            return result;
         }
 //------------------------------------------------------------------------------
 public:
@@ -415,7 +429,7 @@ public:
             Switzerland = 12,
         };
 //------------------------------------------------------------------------------
-        ForexprostoolsApi(std::string sert_file = "curl-ca-bundle.crt") {
+        ForexprostoolsApi(const std::string &sert_file = std::string("curl-ca-bundle.crt")) {
             /* Должен инициализировать libcurl до запуска любых потоков */
             if(curl_global_init(CURL_GLOBAL_ALL) !=0) {
                 is_curl_global_init_error_ = true;
@@ -492,12 +506,12 @@ public:
                     err = download_all_news(stop_time, stop_time + xtime::SECONDS_IN_DAY - 1, list_news);
 
                     if(is_skip_day_off) {
-                            stop_time -= xtime::SECONDS_IN_DAY;
-                            while(xtime::is_day_off(stop_time)) {
-                                    stop_time -= xtime::SECONDS_IN_DAY;
-                            }
+                        stop_time -= xtime::SECONDS_IN_DAY;
+                        while(xtime::is_day_off(stop_time)) {
+                                stop_time -= xtime::SECONDS_IN_DAY;
+                        }
                     } else {
-                            stop_time -= xtime::SECONDS_IN_DAY;
+                        stop_time -= xtime::SECONDS_IN_DAY;
                     }
                     if(err == OK && list_news.size() > 0) { // данные получены
 
@@ -527,19 +541,19 @@ public:
          * \param path директория, куда сохраняются данные
          * \param timestamp_start_date Метка времени, с которой начинается загрузка данных
          * \param timestamp_end_date Метка времени, на которой закончится загрузка данных (включительно указанный день)
-         * \param is_skip_day_off флаг пропуска выходных дней, true если надо пропускать выходные
+         * \param is_use_day_off флаг пропуска выходных дней, true если надо пропускать выходные
          * \param user_function - функтор
          */
         int download_and_save_all_data(
                 const xtime::timestamp_t timestamp_start_date,
                 const xtime::timestamp_t timestamp_end_date,
-                const bool is_skip_day_off = true,
+                const bool is_use_day_off = true,
                 std::function<void(
                     const std::vector<ForexprostoolsApiEasy::News> &list_news,
                     const xtime::timestamp_t timestamp)> user_function = NULL) {
             /* находим последнюю дату загрузки */
             xtime::timestamp_t stop_time = xtime::get_first_timestamp_day(timestamp_end_date);
-            if(is_skip_day_off) {
+            if(!is_use_day_off) {
                 while(xtime::is_day_off(stop_time)) {
                     stop_time -= xtime::SECONDS_IN_DAY;
                 }
@@ -549,7 +563,8 @@ public:
             int num_errors = 0;
             while(stop_time >= timestamp_start_date) {
                 /* сначала выполняем проверку на вызодной */
-                if(is_skip_day_off && xtime::is_day_off(stop_time)) {
+                if(!is_use_day_off && xtime::is_day_off(stop_time)) {
+                    if(stop_time == 0) break;
                     stop_time -= xtime::SECONDS_IN_DAY;
                     continue;
                 }
@@ -568,6 +583,7 @@ public:
                 if(num_errors > MAX_ERRORS) {
                     break;
                 }
+                if(stop_time == 0) break;
                 stop_time -= xtime::SECONDS_IN_DAY;
             }
             if(num_download == 0) {

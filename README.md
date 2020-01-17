@@ -11,7 +11,7 @@ C++ Библиотека для загрузки новостей с Forexprosto
 
 ## Программа для загрузки новостей
 
-Репозиторий содержит готовую программу *bin/forexprostools-downloader.exe* для загрузки новостей с сайта *www.investing.com* за весь период. 
+Репозиторий содержит готовую программу *bin/forexprostools-downloader-1.5.exe* для загрузки новостей с сайта *www.investing.com* за весь период. 
 При повторном вызове программа перезагрузит лишь последнюю неделю в уже ранее загруженных данных. Для работы программы могут понадобиться *dll* библиотеки, они расположены здесь *bin/dll.7z*.
 Уже загруженная база данных находится здесь: *storage/forexprostools.dat*.
 
@@ -29,8 +29,7 @@ C++ Библиотека для загрузки новостей с Forexprosto
 ```C++
 /** \brief Класс Новостей
 */
-class News
-{
+class News {
 public:
 	std::string name;                       /**< Имя новости */
 	std::string currency;                   /**< Валюта новости */
@@ -54,8 +53,7 @@ public:
 #include <iostream>
 #include <ForexprostoolsApi.hpp>
 
-int main()
-{
+int main() {
 	std::cout << "Hello world!" << std::endl;
 
 	std::string path_database = "..//..//storage//forexprostools.dat"; // путь к базе данных новостей

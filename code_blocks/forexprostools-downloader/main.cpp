@@ -24,42 +24,76 @@
 #include <iostream>
 #include <iomanip>
 #include <cctype>
+#include <cstdlib>
 #include <ForexprostoolsApi.hpp>
 #include <ForexprostoolsDataStore.hpp>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
-#define PROGRAM_VERSION "1.4"
-#define PROGRAM_DATE "10.12.2019"
+#define PROGRAM_VERSION "1.5"
+#define PROGRAM_DATE "17.01.2020"
+
+/* обработать все аргументы */
+bool process_arguments(
+    const int argc,
+    char **argv,
+    std::function<void(
+        const std::string &key,
+        const std::string &value)> f) noexcept {
+    if(argc <= 1) return false;
+    bool is_error = true;
+    for(int i = 1; i < argc; ++i) {
+        std::string key = std::string(argv[i]);
+        if(key.size() > 0 && (key[0] == '-' || key[0] == '/')) {
+            uint32_t delim_offset = 0;
+            if(key.size() > 2 && (key.substr(2) == "--") == 0) delim_offset = 1;
+            std::string value;
+            if((i + 1) < argc) value = std::string(argv[i + 1]);
+            is_error = false;
+            f(key.substr(delim_offset), value);
+        }
+    }
+    return !is_error;
+}
 
 int main(int argc, char* argv[]) {
-    std::cout << "forexprostools downloader " << PROGRAM_VERSION << " " << PROGRAM_DATE << std::endl;
+    std::cout << "forexprostools downloader" << std::endl;
+    std::cout
+        << "version: " << PROGRAM_VERSION
+        << " date: " << PROGRAM_DATE
+        << std::endl << std::endl;
+
     std::string path_json;	// путь к файлу json с настройками
     std::string path_database; // путь к базе данных новостей
+    std::string environmental_variable;
+    std::string sert_file("curl-ca-bundle.crt");
     bool is_use_day_off = true;
 
-    if(argc == 1) {
-        std::cout << "Error! No parameters!" << std::endl;
-        return -1;
-    }
-
-    /* парсим команды */
-    for(int i = 1; i < argc; ++i) {
-        std::string value = std::string(argv[i]);
-        if((value == "path_json") && (i + 1) < argc) {
-            path_json = std::string(argv[i + 1]);
+    if(!process_arguments(argc, argv,[&](const std::string &key, const std::string &value){
+        if (key == "path_json" ||
+            key == "pj" ||
+            key == "json_file" ||
+            key == "jf") {
+            path_json = value;
         } else
-        if((value == "path_database") && (i + 1) < argc) {
-            path_database = std::string(argv[i + 1]);
-        }
-        if((value == "-nodayoff" || value == "-ndo")) {
+        if(key == "path_database" || key == "pd") {
+            path_database = value;
+        } else
+        if(key == "use_day_off" || key == "udo") {
+            is_use_day_off = true;
+        } else
+        if(key == "not_use_day_off" || key == "nudo") {
             is_use_day_off = false;
         }
+    })) {
+        std::cerr << "Error! No parameters!" << std::endl;
+        return EXIT_FAILURE;
     }
+
     if(path_json.size() == 0 && path_database.size() == 0) {
-        std::cout << "Error! The path to the database or settings file is incorrect!" << std::endl;
-        return -1;
+        std::cerr << "Error! The path to the database or settings file is incorrect!" << std::endl;
+        return EXIT_FAILURE;
     }
 
     /* Если надо, загружаем парметры из файла json */
@@ -71,24 +105,32 @@ int main(int argc, char* argv[]) {
             file_json.close();
         }
         catch(...) {
-            std::cout << "Error, file json cannot be opened!" << std::endl;
-            return -1;
+            std::cerr << "Error, file json cannot be opened!" << std::endl;
+            return EXIT_FAILURE;
         }
         try {
-            path_database = settings_json["path_database"];
-            if(settings_json["is_use_day_off"] != nullptr) is_use_day_off = settings_json["is_use_day_off"];
-            if(settings_json["is_skip_day_off"] != nullptr) {
-                if(settings_json["is_skip_day_off"] == true) {
-                    is_use_day_off = false;
-                } else {
-                    is_use_day_off = true;
-                }
-            }
+            if(settings_json["path_database"] != nullptr) path_database = settings_json["path_database"];
+            if(settings_json["environmental_variable"] != nullptr) environmental_variable = settings_json["environmental_variable"];
+            if(settings_json["sert_file"] != nullptr) sert_file = settings_json["sert_file"];
+            if(settings_json["use_day_off"] != nullptr) is_use_day_off = settings_json["use_day_off"];
         }
         catch(...) {
-            std::cout << "Error, json file does not contain necessary objects!" << std::endl;
-            return -1;
+            std::cerr << "Error, json file does not contain necessary objects!" << std::endl;
+            return EXIT_FAILURE;
         }
+    }
+
+    if(environmental_variable.size() != 0) {
+        const char* env_ptr = std::getenv(environmental_variable.c_str());
+        if(env_ptr == NULL) {
+            std::cerr << "Error, no environment variable!" << std::endl;
+            return EXIT_FAILURE;
+        }
+        if(path_database.size() != 0) {
+            path_database = std::string(env_ptr) + "\\" + path_database;
+            sert_file = std::string(env_ptr) + "\\" + sert_file;
+        }
+        else path_database = std::string(env_ptr);
     }
 
     /* создаем папку */
@@ -110,6 +152,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "path: " << path_database << std::endl;
+    std::cout << std::boolalpha;
     std::cout << "use day off: " << is_use_day_off << std::endl;
     std::cout << "start of download..." << std::endl;
 
@@ -122,7 +165,10 @@ int main(int argc, char* argv[]) {
     xtime::timestamp_t min_timestamp = 0, max_timestamp = 0;
     iDataStore.get_min_max_timestamp(min_timestamp, max_timestamp);
     const xtime::timestamp_t SECONDS_IN_WEEK = xtime::SECONDS_IN_DAY * xtime::DAYS_IN_WEEK;
-    if(max_timestamp > (2*SECONDS_IN_WEEK)) max_timestamp -= (2*SECONDS_IN_WEEK);
+    const xtime::timestamp_t SECONDS_IN_WEEK_X2 = SECONDS_IN_WEEK * 2;
+    const xtime::timestamp_t SECONDS_IN_WEEK_X2_1 = SECONDS_IN_WEEK_X2 + xtime::SECONDS_IN_DAY;
+
+    if(max_timestamp > SECONDS_IN_WEEK_X2_1) max_timestamp -= SECONDS_IN_WEEK_X2_1;
     else max_timestamp = 0;
     /* отобразим дату данных, если есть корректные метки времени */
     if(min_timestamp != 0 && max_timestamp != 0) {
@@ -134,18 +180,22 @@ int main(int argc, char* argv[]) {
             << std::endl;
     }
 
+    xtime::timestamp_t stop_timestamp = xtime::get_first_timestamp_day(xtime::get_timestamp());
+    stop_timestamp += SECONDS_IN_WEEK_X2;
+    int err = xquotes_common::NO_INIT;
+    ForexprostoolsApi api(sert_file);
     /* начинаем згрузку данных  через API */
-    int err = xquotes_common::OK;
-    ForexprostoolsApi api;
-    const uint32_t days = xtime::DAYS_IN_WEEK * 2;
-    const xtime::timestamp_t stop_timestamp = xtime::get_first_timestamp_next_day(xtime::get_timestamp(), days);
-    api.download_and_save_all_data(max_timestamp, stop_timestamp, is_use_day_off, [&](
+    int err_download = api.download_and_save_all_data(
+                max_timestamp,
+                stop_timestamp,
+                is_use_day_off,
+                [&](
             const std::vector<ForexprostoolsApiEasy::News> &list_news,
             const xtime::timestamp_t timestamp) {
         /* запишем полученне данные в хранилище  */
         err = iDataStore.write_news(list_news, timestamp);
         if(err != xquotes_common::OK) {
-            std::cout << "write error, code: " << err << "\r";
+            std::cerr << "write error, code: " << err << "\r";
             return;
         }
         std::cout
@@ -155,8 +205,13 @@ int main(int argc, char* argv[]) {
         iDataStore.save();
     });
     std::cout << std::endl;
-    if(err == xquotes_common::OK) std::cout << "data download completed" << std::endl;
-    else std::cout << "error downloading data, code: " << err << std::endl;
-    return err;
+    if(err == xquotes_common::OK && err_download == ForexprostoolsApi::OK) {
+        std::cout << "data download completed" << std::endl;
+        return EXIT_SUCCESS;
+    }
+    std::cerr << "error downloading data" << std::endl;
+    std::cerr << "write error, code: " << err << std::endl;
+    std::cerr << "download error, code: " << err_download << std::endl;
+    return EXIT_FAILURE;
 }
 

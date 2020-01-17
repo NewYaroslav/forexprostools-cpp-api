@@ -347,6 +347,52 @@ namespace ForexprostoolsDataStore {
                 state);
             return (err == OK && state == NEWS_FOUND);
         }
+
+        /** \brief Получить массив новостей с конкретным именем и валютой
+         * \param timestamp Метка времени
+         * \param news_name Имя новости
+         * \param currency Валюта новости
+         * \param news_data Список новостей
+         * \param number_news Количество новостей. Если 0, то будет загружено максимально возможное количество
+         * \param is_reverse Флаг реверса массива новостей. По умолчанию реверс отключен, т.е. первый элемент массива соответствует самой старой новости.
+         * \return Вернет 0 в случае отсутствия ошибок
+         */
+        int get(
+                const xtime::timestamp_t timestamp,
+                const std::string &news_name,
+                const std::string &currency,
+                std::vector<News> &news_data,
+                const uint32_t number_news = 0,
+                const bool is_reverse = false) {
+
+            for(xtime::timestamp_t t = xtime::get_first_timestamp_day(timestamp);
+                t > 0;
+                t -= xtime::SECONDS_IN_DAY) {
+                std::vector<News> list_news;
+                int err = read_news(list_news, t);
+                if(err != OK) continue;
+                for(size_t n = 0; n < list_news.size(); ++n) {
+                    if(currency.size() > 0 &&
+                        list_news[n].currency != currency) continue;
+                    if(news_name.size() > 0 &&
+                        list_news[n].name != news_name) continue;
+                    news_data.push_back(list_news[n]);
+                    if(number_news != 0 && news_data.size() >= number_news) {
+                        if(!is_reverse) {
+                            std::reverse(news_data.begin(), news_data.end());
+                        }
+                        return OK;
+                    }
+                }
+            }
+            if(news_data.size() > 0) {
+                if(!is_reverse) {
+                    std::reverse(news_data.begin(), news_data.end());
+                }
+                return OK;
+            }
+            return NO_DATA_ACCESS;
+        }
     };
 }
 #endif // FOREXPROSTOOLS_DATA_STOR_HPP_INCLUDED
