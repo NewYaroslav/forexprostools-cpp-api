@@ -24,6 +24,7 @@
 #ifndef FOREXPROSTOOLSAPI_HPP_INCLUDED
 #define FOREXPROSTOOLSAPI_HPP_INCLUDED
 //------------------------------------------------------------------------------
+#include <iostream>
 #include <curl/curl.h>
 #include <gzip/decompress.hpp>
 #include <nlohmann/json.hpp>
