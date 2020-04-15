@@ -6,6 +6,7 @@
 int main()
 {
         std::cout << "Hello world!" << std::endl;
+#if(0)
         std::string path = "D:\\_repoz\\forexprostools_database\\news";
         ForexprostoolsApiEasy::DataBase iNewsDataBase(path);
 
@@ -16,20 +17,21 @@ int main()
                 std::cout << "state " << state << std::endl;
         }
         return 0;
-
-        ForexprostoolsApi api;
-
+#endif
+        ForexprostoolsApi api("curl-ca-bundle.crt");
         std::vector<ForexprostoolsApiEasy::News> list_news; // список новостей
         // загружаем новости
-        int err = api.download_all_news(xtime::get_unix_timestamp(14, 6, 1019, 0, 0, 0), xtime::get_unix_timestamp(14, 6, 1019, 23, 59, 59), list_news);
+        int err = api.download_all_news(xtime::get_timestamp(10, 02, 2020, 0, 0, 0), xtime::get_timestamp(10, 02, 2020, 23, 59, 59), list_news);
         std::cout << "err " << err << std::endl;
 
 #if(1)
         // выводим на экран
         for(size_t i = 0; i < list_news.size(); ++i) {
-                std::cout << list_news[i].name << std::endl;
+                std::cout << list_news[i].name << " " << list_news[i].currency << std::endl;
         }
 #endif
+
+#if(0)
         // инициализируем хранилище новостей
         ForexprostoolsApiEasy::NewsList news_data(list_news);
         std::vector<ForexprostoolsApiEasy::News> day_list_news; // список новостей вблизи временной метки
@@ -57,6 +59,7 @@ int main()
         // скачаем все данные
 
         api.download_and_save_all_data(path, xtime::get_unix_timestamp());
+#endif
         return 0;
 }
 

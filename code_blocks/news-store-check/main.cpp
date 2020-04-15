@@ -11,7 +11,8 @@ using json = nlohmann::json;
 #define PROGRAM_DATE "17.11.2019"
 
 int main(int argc, char* argv[]) {
-    std::string path_database = "..//..//storage//forexprostools.dat"; // путь к базе данных новостей
+    //std::string path_database = "..//..//storage//forexprostools.dat"; // путь к базе данных новостей
+    std::string path_database = "forexprostools.dat"; // путь к базе данных новостей
     ForexprostoolsDataStore::DataStore iDataStore(path_database);
 
     /* получим минимальную и максимальную даты новостей
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]) {
 
     /* получим новости за один день */
     std::vector<ForexprostoolsApiEasy::News> day_list_news;
-    iDataStore.get(xtime::get_timestamp(15,11,2019), 0, xtime::SECONDS_IN_DAY, day_list_news);
+    iDataStore.get(xtime::get_timestamp(10,2,2020), 0, xtime::SECONDS_IN_DAY, day_list_news);
 
     if(true) {
         for(size_t i = 0; i < day_list_news.size(); ++i) {

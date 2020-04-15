@@ -31,8 +31,8 @@
 
 using json = nlohmann::json;
 
-#define PROGRAM_VERSION "1.5"
-#define PROGRAM_DATE "17.01.2020"
+#define PROGRAM_VERSION "1.6"
+#define PROGRAM_DATE "15.04.2020"
 
 /* обработать все аргументы */
 bool process_arguments(
@@ -204,6 +204,7 @@ int main(int argc, char* argv[]) {
             << "\r";
         iDataStore.save();
     });
+    //iDataStore.save();
     std::cout << std::endl;
     if(err == xquotes_common::OK && err_download == ForexprostoolsApi::OK) {
         std::cout << "data download completed" << std::endl;

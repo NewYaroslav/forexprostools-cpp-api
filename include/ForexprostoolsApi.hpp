@@ -365,6 +365,7 @@ private:
 
             curl_easy_setopt(curl, CURLOPT_POST, 1); // делаем пост запрос
             curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+			curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
             curl_easy_setopt(curl, CURLOPT_CAINFO, sert_file.c_str());
             curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
             curl_easy_setopt(curl, CURLOPT_HEADER, 0); // отключаем заголовок в ответе
