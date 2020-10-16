@@ -33,7 +33,7 @@
 #include <string>
 #include <vector>
 #include <ForexprostoolsApiEasy.hpp>
-#include <ForexprostoolsDataStore.hpp>
+//#include <ForexprostoolsDataStore.hpp>
 //------------------------------------------------------------------------------
 class ForexprostoolsApi {
 public:
